@@ -3,19 +3,18 @@
 
 # Imports section
 import random
-from music21 import stream
+from music21 import stream, meter, key
 
 # Definition of the path to the results folder
-results_folder = "/home/cristina/melodic-contour-generation-based-on-sketches/synthetic_dataset"
+results_folder = "synthetic_dataset"
 
 # Definition of the constant variables
 num_bars = 3
-time_signature = "4/4"
+time_signature = meter.TimeSignature('4/4')
 pitch_range = (60, 84)  # MIDI numbers: C4 (60) to B5 (83)
 
 # For getting a random key
-key_tonic = ["C", "D", "E", "F", "G", "A", "B"]
-key_mode = ["major", "minor"]
+keys = ["C", "D", "E", "F", "G", "A", "B", "c", "d", "e", "f", "g", "a", "b"]
 
 num_samples = 1
 
@@ -26,10 +25,8 @@ for sample in range(num_samples):
     new_part.timeSignature = time_signature
     
     # Generate random key
-    tonic = random.choice(tonic)
-    mode = random.choice(mode)
-    random_key = tonic + mode
+    random_key = key.Key(random.choice(keys))
     print(random_key)
     new_part.keySignature = random_key
 
-    print(new_stream)
+    new_stream.show()
