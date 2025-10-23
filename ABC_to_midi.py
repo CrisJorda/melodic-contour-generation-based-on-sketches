@@ -6,8 +6,8 @@ import os
 from music21 import abcFormat, converter, stream, metadata, environment
 
 # Define the path to your ABC file and the results folder
-abc_file_path = "melodic-contour-generation-based-on-sketches/data.abc"
-results_folder = "melodic-contour-generation-based-on-sketches/3-bar_dataset"
+abc_file_path = "/home/cristina/melodic-contour-generation-based-on-sketches/data.abc"
+results_folder = "/home/cristina/melodic-contour-generation-based-on-sketches/3-bar_dataset"
 
 with open(abc_file_path, "r", encoding="utf-8") as abc_file:
     abc_data = abc_file.read()
