@@ -13,7 +13,7 @@ time_signature = meter.TimeSignature('4/4')
 notes_per_bar = 16
 pitch_range = range(60, 84)  # MIDI numbers: C4 (60) to B5 (83)
 
-type_range = ["16th", "eighth", "quarter", "half", "whole"] # needs to be random?
+type_range = ["16th", "eighth", "quarter", "half", "whole"] # needs to be random? just put 16th to all notes
 
 # For getting a random key
 keys = ["C", "D", "E", "F", "G", "A", "B", "c", "d", "e", "f", "g", "a", "b"]
