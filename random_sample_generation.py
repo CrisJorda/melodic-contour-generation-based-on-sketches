@@ -1,6 +1,7 @@
 # Generate the synthetic dataset
 
 # Imports section
+import os
 import random
 from music21 import stream, meter, key, note
 
@@ -18,7 +19,7 @@ type_range = ["16th", "eighth", "quarter", "half", "whole"] # needs to be random
 # For getting a random key
 keys = ["C", "D", "E", "F", "G", "A", "B", "c", "d", "e", "f", "g", "a", "b"]
 
-num_samples = 1
+num_samples = 1000
 
 for sample in range(num_samples):
     new_stream = stream.Stream()
@@ -26,7 +27,7 @@ for sample in range(num_samples):
 
     # Generate random key
     random_key = key.Key(random.choice(keys))
-    print(random_key)
+    # print(random_key)
 
     new_stream.append(time_signature)
     new_stream.append(random_key)
@@ -40,9 +41,14 @@ for sample in range(num_samples):
             pitch = random.choice(pitch_range)
 
             # Generate random rhythm
-            #rhythm = random.choice(type_range)
+            # rhythm = random.choice(type_range)
 
             # Append new note to the measure
             measure.append(note.Note(pitch, type="16th"))
 
         new_stream.append(measure)
+    
+    result_midi_filename = os.path.join(
+        results_folder, f"{sample}.midi"
+    )
+    new_stream.write("midi", result_midi_filename)
