@@ -7,7 +7,7 @@ from music21 import abcFormat, converter, stream, metadata, environment
 
 # Definition of the path to ABC file and the results folder
 abc_file_path = "/home/cristina/melodic-contour-generation-based-on-sketches/data.abc"
-results_folder = "/home/cristina/melodic-contour-generation-based-on-sketches/3-bar_dataset"
+results_folder = "/home/cristina/melodic-contour-generation-based-on-sketches/irish_tunes_dataset"
 
 with open(abc_file_path, "r", encoding="utf-8") as abc_file:
     abc_data = abc_file.read()
@@ -92,24 +92,23 @@ for song_index, abc_song in enumerate(abc_songs):
             # Add the new part to the new MIDI stream
             new_midi_stream.append(new_part)
 
-        # Extract and save non-overlapping 3-bar segments
+        # Extract and save non-overlapping 2-bar segments
         num_measures = measure_number_in_part
         start_measure = 1
-        while start_measure + 2 <= num_measures: # 3 measures in total
-            end_measure = start_measure + 2
+        while start_measure + 1 <= num_measures: # 2 measures in total
+            end_measure = start_measure + 1
             # print(start_measure, end_measure)
-            three_bar_segment = new_midi_stream.parts[0].measures(
+            two_bar_segment = new_midi_stream.parts[0].measures(
                 start_measure, end_measure
             )
-            # print(len(four_bar_segment.getElementsByClass(stream.Measure)))
-            three_bar_filename = os.path.join(
-                results_folder, f"{song_name}_{song_index}_3bars_{start_measure}.midi"
+            two_bar_filename = os.path.join(
+                results_folder, f"{song_name}_{song_index}_{start_measure}.midi"
             )
-            three_bar_segment.write("midi", three_bar_filename)
+            two_bar_segment.write("midi", two_bar_filename)
             start_measure = end_measure + 1
 
     except:
-        print(f"Error in {three_bar_filename}, skipping...")
+        print(f"Error in {two_bar_filename}, skipping...")
 
 # Clean up the temporary ABC file
 os.remove("temp.abc")
