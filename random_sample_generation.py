@@ -9,7 +9,7 @@ from music21 import stream, meter, key, note
 results_folder = "synthetic_dataset"
 
 # Definition of the constant variables
-num_bars = 3
+num_bars = 2
 time_signature = meter.TimeSignature('4/4')
 notes_per_bar = 16
 pitch_range = range(60, 84)  # MIDI numbers: C4 (60) to B5 (83)
