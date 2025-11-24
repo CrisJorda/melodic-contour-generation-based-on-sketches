@@ -65,6 +65,10 @@ def extract_pitches_1bar(notes):
             onsets.append(n.offset)
             pitches.append(n.pitch.midi)
 
+    # Convert to numpy arrays
+    onsets = np.array(onsets, dtype=np.float32)
+    pitches = np.array(pitches, dtype=np.int16)
+
     # Convert note onset (offset in beats) to a grid position [0..47]
     norm_onsets = np.mod(onsets, measeure_length) / measeure_length
     quant_onsets = np.round(norm_onsets * (seq_len - 1)).astype(int)
