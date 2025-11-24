@@ -22,6 +22,7 @@ _ = torch.cuda.manual_seed(seed)
 
 # Work on GPU if it is available in the machine, otherwise run on CPU
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+print(device)
 
 # Definition of hyper-parameters
 hparams = {
@@ -39,11 +40,11 @@ hparams = {
     'vocab_size_Trp': 7,
     'chroma_dim': 12,
     
-    'num_epochs':2,
+    'num_epochs':100,
     'lambda_trp': 1.0,
     'lambda_tmidi': 1.0,
     'lambda_chroma': 1.0,
-    'learning_rate':1e-4,
+    'learning_rate':3e-5,
     'variational_beta': 0.1,
 }
 
@@ -125,6 +126,8 @@ def process_bars(midi_path):
     # Return pitch vectors as numpy arrays
     return np.array(bar1_pitch_vector), np.array(bar2_pitch_vector), np.array(frp)
 
+# Show
+
 # Definition the Pytorch Dataset
 class CombinedDataset(Dataset):
     """
@@ -159,8 +162,8 @@ class CombinedDataset(Dataset):
         return past_pitches, curr_pitches, frp, midi_path
 
 # Definition of the dataset folders
-irish_root = 'C:/Users/cristinj/OneDrive - Universitetet i Oslo/Documents/Project1/melodic-contour-generation-based-on-sketches/irishtunes_dataset'
-synthetic_root = 'C:/Users/cristinj/OneDrive - Universitetet i Oslo/Documents/Project1/melodic-contour-generation-based-on-sketches/synthetics_dataset'
+irish_root = '/home/cristina/melodic-contour-generation-based-on-sketches/irishtunes_dataset'
+synthetic_root = '/home/cristina/melodic-contour-generation-based-on-sketches/synthetics_dataset'
 
 # Create one dataset for all data
 combined_dataset = CombinedDataset(irish_root, synthetic_root)
@@ -848,7 +851,8 @@ plt.savefig("total_loss.png")
 plt.close()
 
 # Other losses curves
-fig, axs = plt.subplots(2, 2, figsize=(12, 4))
+fig, axs = plt.subplots(2, 2, figsize=(10, 10))
+axs = axs.flatten()
 
 loss_types = ["ce_loss_trp", "ce_loss_tmidi", "bce_loss_chroma", "kl_loss"]
 y_labels = ["Relative pitch loss (CE)", "Midi loss (CE)", "Chroma vector loss (BCE", "VAE loss (KL div)"]
@@ -866,4 +870,6 @@ plt.close()
 
 
 # -------------------- Save the trained model ------------------
-checkpoint_path = 'C:/Users/cristinj/OneDrive - Universitetet i Oslo/Documents/Project1/melodic-contour-generation-based-on-sketches/exp1_model.pth'
+checkpoint_path = '/home/cristina/melodic-contour-generation-based-on-sketches/exp1_model.pth'
+torch.save(model.state_dict(), checkpoint_path)
+print('Model saved')
