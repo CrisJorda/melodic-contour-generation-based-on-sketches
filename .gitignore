@@ -2,3 +2,4 @@ venv
 irishtunes_dataset
 synthetics_dataset
 .ipynb_checkpoints
+exp1_model.pth
