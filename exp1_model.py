@@ -40,7 +40,7 @@ hparams = {
     'vocab_size_Trp': 7,
     'chroma_dim': 12,
     
-    'num_epochs':100,
+    'num_epochs':10,
     'lambda_trp': 1.0,
     'lambda_tmidi': 1.0,
     'lambda_chroma': 1.0,
@@ -91,23 +91,28 @@ def compute_frp(onsets, pitches):
     filter_cutoff = 1/50
     filter_order = 5
 
-    # Piecewise-linear interpolation
-    x = np.linspace(onsets.min(), onsets.max(), frp_len)
-    y = np.interp(x, onsets, pitches)
+    if len(onsets) == 0 or len(pitches) == 0:
+        # Check empty arrays
+        frp = np.zeros(frp_len, dtype=np.float32)
 
-    # Low-pass Butterworth filtering
-    # to smooth the linear interpolation
-    b, a = butter(filter_order, filter_cutoff, btype='low')
-    y_smooth = filtfilt(b, a, y)
+    else:
+        # Piecewise-linear interpolation
+        x = np.linspace(onsets.min(), onsets.max(), frp_len)
+        y = np.interp(x, onsets, pitches)
 
-    # Normalization
-    # Find midpoint in the curve range
-    pitch_range = y_smooth.max() - y_smooth.min()
-    middle_val = y_smooth.min() + pitch_range/2
+        # Low-pass Butterworth filtering
+        # to smooth the linear interpolation
+        b, a = butter(filter_order, filter_cutoff, btype='low')
+        y_smooth = filtfilt(b, a, y)
 
-    # Substract midpoint and divide by 12
-    # 12 because 12 semitones = 1 octave
-    frp = (y_smooth - middle_val) / 12.0
+        # Normalization
+        # Find midpoint in the curve range
+        pitch_range = y_smooth.max() - y_smooth.min()
+        middle_val = y_smooth.min() + pitch_range/2
+
+        # Substract midpoint and divide by 12
+        # 12 because 12 semitones = 1 octave
+        frp = (y_smooth - middle_val) / 12.0
 
     # Return the function
     return frp.astype(np.float32)
@@ -129,8 +134,6 @@ def process_bars(midi_path):
 
     # Return pitch vectors as numpy arrays
     return np.array(bar1_pitch_vector), np.array(bar2_pitch_vector), np.array(frp)
-
-# Show
 
 # Definition the Pytorch Dataset
 class CombinedDataset(Dataset):
@@ -743,6 +746,7 @@ for epoch in range(hparams['num_epochs']):
     train_loss_avg["kl_loss"].append(0)
 
     for i, batch in enumerate(train_dataloader):
+        print(i)
         # Unpack dataset output
         bar1_pitches, bar2_pitches, frp, midi_path = batch
         
