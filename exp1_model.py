@@ -8,6 +8,7 @@ import torch
 from torch.utils.data import Dataset, DataLoader, random_split
 import torch.nn as nn
 import torch.optim as optim
+from torchinfo import summary
 
 from music21 import converter, note, stream
 from scipy.signal import butter, filtfilt
@@ -46,6 +47,7 @@ hparams = {
     'lambda_chroma': 1.0,
     'learning_rate':3e-5,
     'variational_beta': 0.1,
+    'patience_early_stopping': 10,
 }
 
 #--------- Definition of Pytorch dataset and Dataloader -------------#
@@ -727,6 +729,21 @@ model = VariationalAutoencoder(hparams['channels'], hparams['latent_dim'], hpara
 model = model.to(device)
 optimizer = optim.Adam(params=model.parameters(), lr=hparams['learning_rate'])
 
+# Get the summary of the parameters
+summary_model = summary(model, 
+                        input_size=[(hparams['batch_size'], 1, hparams['frp_len']), (hparams['batch_size'], 1, hparams['seq_len_dataset'])],
+                        dtypes=[torch.float, torch.int])
+print(summary_model)
+
+# Save checkpoint every 10 epochs
+checkpoints_dir = 'C:/Users/cristinj/OneDrive - Universitetet i Oslo/Documents/Project1/melodic-contour-generation-based-on-sketches/checkpoints'
+os.makedirs(checkpoints_dir, exist_ok=True)
+
+# Early stopping settings
+best_val_loss = float('inf')
+epochs_no_improve = 0
+early_stop = False
+
 # Training loop
 start_time=time.time()
 
@@ -840,6 +857,43 @@ for epoch in range(hparams['num_epochs']):
         )
         
     model.train()
+
+    # Save the model every 10 epochs
+    if (epoch + 1) % 10 == 0:       
+        save_path = os.path.join(      
+            checkpoints_dir, f"model_epoch_{epoch+1}.pth"
+        )
+        torch.save({
+            "epoch": epoch + 1,
+            "model_state_dict": model.state_dict(),
+            "optimizer_state_dict": optimizer.state_dict(),
+            "hparams": hparams
+        }, save_path)
+        print(f"Saved checkpoint: {save_path}")
+    
+    # Early stopping
+    current_val_loss = val_loss_avg['loss_total'][-1]
+
+    if current_val_loss < best_val_loss:
+        best_val_loss = current_val_loss
+        epochs_no_improve = 0
+
+        # Save best model
+        best_path = os.path.join(checkpoints_dir, "best_model.pth")
+        torch.save({
+            "epoch": epoch + 1,
+            "model_state_dict": model.state_dict(),
+            "optimizer_state_dict": optimizer.state_dict(),
+            "hparams": hparams
+        }, best_path)
+    
+    else:
+        epochs_no_improve += 1
+    
+    # Check patience
+    if epochs_no_improve >= hparams['patience_early_stopping']:
+        early_stop = True
+        break
 
 print("--- TOTAL TIME: %s min ---" % (round((time.time() - start_time) / 60, 3)))
 
