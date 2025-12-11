@@ -41,7 +41,7 @@ hparams = {
     'vocab_size_Trp': 7,
     'chroma_dim': 12,
     
-    'num_epochs':10,
+    'num_epochs':100,
     'lambda_trp': 1.0,
     'lambda_tmidi': 1.0,
     'lambda_chroma': 1.0,
@@ -736,7 +736,7 @@ summary_model = summary(model,
 print(summary_model)
 
 # Save checkpoint every 10 epochs
-checkpoints_dir = 'C:/Users/cristinj/OneDrive - Universitetet i Oslo/Documents/Project1/melodic-contour-generation-based-on-sketches/checkpoints'
+checkpoints_dir = '/home/cristina/melodic-contour-generation-based-on-sketches/checkpoints'
 os.makedirs(checkpoints_dir, exist_ok=True)
 
 # Early stopping settings
@@ -929,9 +929,3 @@ for i, loss_type in enumerate(loss_types):
 fig.legend(handles=[train_h, val_h], loc="upper center", bbox_to_anchor=(0.5, 1.15))
 plt.savefig("other_loss.png")
 plt.close()
-
-
-# -------------------- Save the trained model ------------------
-checkpoint_path = '/home/cristina/melodic-contour-generation-based-on-sketches/exp1_model.pth'
-torch.save(model.state_dict(), checkpoint_path)
-print('Model saved')
