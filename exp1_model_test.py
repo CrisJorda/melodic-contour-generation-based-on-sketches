@@ -8,6 +8,7 @@ import torch
 from torch.utils.data import Dataset, DataLoader, random_split
 import torch.nn as nn
 import torch.optim as optim
+from torchinfo import summary
 
 from music21 import converter, note, stream
 from scipy.signal import butter, filtfilt
@@ -40,12 +41,13 @@ hparams = {
     'vocab_size_Trp': 7,
     'chroma_dim': 12,
     
-    'num_epochs':10,
+    'num_epochs':100,
     'lambda_trp': 1.0,
     'lambda_tmidi': 1.0,
     'lambda_chroma': 1.0,
     'learning_rate':3e-5,
     'variational_beta': 0.1,
+    'patience_early_stopping': 10,
 }
 
 #--------- Definition of Pytorch dataset and Dataloader -------------#
@@ -723,13 +725,19 @@ def loss_function(trp_pred, trp_true, tmidi_pred, tmidi_true,
     return loss_total, ce_loss_trp, ce_loss_tmidi, bce_loss_chroma, kl_total
 
 # --------------- Load trained model -----------------
-checkpoint_path = '/home/cristina/melodic-contour-generation-based-on-sketches/exp1_model.pth'
+checkpoint_path = '/home/cristina/melodic-contour-generation-based-on-sketches/checkpoints/best_model.pth'
 checkpoint = torch.load(checkpoint_path, map_location = torch.device('cpu'))
 
 model = VariationalAutoencoder(hparams['channels'], hparams['latent_dim'], hparams['vocab_size'], hparams['seq_len'], hparams['frp_len'], hparams['n_layers_encoder'], hparams['embedding_dim'], hparams['n_layers_gru'], hparams['hidden_dim_gru'], hparams['vocab_size_Trp'], hparams['chroma_dim'])
-model.load_state_dict(checkpoint)
+model.load_state_dict(checkpoint["model_state_dict"])
 model = model.to(device)
 print('Model loaded')
+
+# Get the summary of the parameters
+summary_model = summary(model, 
+                        input_size=[(hparams['batch_size'], 1, hparams['frp_len']), (hparams['batch_size'], 1, hparams['seq_len_dataset'])],
+                        dtypes=[torch.float, torch.int])
+#print(summary_model)
 
 # --------------- Evaluate on test set ---------------
 # Set to evaluation mode
@@ -832,16 +840,15 @@ tmidi_pred, _, _, _, _, _, _ = model(x_curve, x_context)
 num_samples = 10
 
 for i in range(num_samples):
-    print("First bar melody")
+    #print("First bar melody")
     first_bar_score = converter.parse(str(midi_path[i])).measure(1)
-    first_bar_score.write('midi', fp=f"first_bar_score{i}.mid")
+    first_bar_score.write('midi', fp=f"Midi/first_bar_score{i}.mid")
 
-    print("Second bar original melody")
+    #print("Second bar original melody")
     second_bar_score = converter.parse(str(midi_path[i])).measure(2)
-    second_bar_score.write('midi', fp=f"second_bar_score{i}.mid")
+    second_bar_score.write('midi', fp=f"Midi/second_bar_score{i}.mid")
 
-    print("Second bar generated melody")
+    #print("Second bar generated melody")
     pitch = tmidi_pred[i].argmax(dim=-1).cpu().numpy()
-    #print(pitch)
     generated_score = tmidi_to_score(pitch, hparams['seq_len'])
-    generated_score.write('midi', fp=f"generated_score{i}.mid")
+    generated_score.write('midi', fp=f"Midi/generated_score{i}.mid")
