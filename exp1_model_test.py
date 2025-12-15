@@ -10,7 +10,7 @@ import torch.nn as nn
 import torch.optim as optim
 from torchinfo import summary
 
-from music21 import converter, note, stream
+from music21 import converter, note, stream, meter
 from scipy.signal import butter, filtfilt
 
 import matplotlib.pyplot as plt
@@ -725,7 +725,7 @@ def loss_function(trp_pred, trp_true, tmidi_pred, tmidi_true,
     return loss_total, ce_loss_trp, ce_loss_tmidi, bce_loss_chroma, kl_total
 
 # --------------- Load trained model -----------------
-checkpoint_path = '/home/cristina/melodic-contour-generation-based-on-sketches/checkpoints/best_model.pth'
+checkpoint_path = '/home/cristina/melodic-contour-generation-based-on-sketches/checkpoints/model_epoch_100.pth'
 checkpoint = torch.load(checkpoint_path, map_location = torch.device('cpu'))
 
 model = VariationalAutoencoder(hparams['channels'], hparams['latent_dim'], hparams['vocab_size'], hparams['seq_len'], hparams['frp_len'], hparams['n_layers_encoder'], hparams['embedding_dim'], hparams['n_layers_gru'], hparams['hidden_dim_gru'], hparams['vocab_size_Trp'], hparams['chroma_dim'])
@@ -734,9 +734,9 @@ model = model.to(device)
 print('Model loaded')
 
 # Get the summary of the parameters
-summary_model = summary(model, 
-                        input_size=[(hparams['batch_size'], 1, hparams['frp_len']), (hparams['batch_size'], 1, hparams['seq_len_dataset'])],
-                        dtypes=[torch.float, torch.int])
+#summary_model = summary(model, 
+#                        input_size=[(hparams['batch_size'], 1, hparams['frp_len']), (hparams['batch_size'], 1, hparams['seq_len_dataset'])],
+#                        dtypes=[torch.float, torch.int])
 #print(summary_model)
 
 # --------------- Evaluate on test set ---------------
@@ -793,7 +793,8 @@ print("--- TOTAL TIME: %s min ---" % (round((time.time() - start_time) / 60, 3))
 """
 def tmidi_to_score(tmidi_tokens, seq_len):
     score = stream.Stream()
-    tick_duration = 1.0 / seq_len
+    score.append(meter.TimeSignature('4/4'))
+    tick_duration = 4.0 / seq_len
 
     # Definition of previous element
     prev_element = None
@@ -835,7 +836,7 @@ model.to(device)
 x_curve = frp.float().unsqueeze(1).to(device)
 x_context = bar1_pitches.int().unsqueeze(1).to(device)
 # Apply model
-tmidi_pred, _, _, _, _, _, _ = model(x_curve, x_context)
+tmidi_pred, trp_pred, _, _, _, _, _ = model(x_curve, x_context)
 
 num_samples = 10
 
