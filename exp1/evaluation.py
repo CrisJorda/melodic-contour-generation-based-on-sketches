@@ -272,14 +272,14 @@ with torch.no_grad():
 
         # Save the results
         #print("First sample")
-        sample_1_score = converter.parse(str(sample_1[3])).measure(1)
+        sample_1_score = converter.parse(str(sample_1[3][i]))
         sample_1_score.write('midi', fp=f"exp1/Midi_Eval/sample_1_{i}.mid")
 
         #print("Second sample")
-        sample_2_score = converter.parse(str(sample_2[3])).measure(2)
+        sample_2_score = converter.parse(str(sample_2[3][i]))
         sample_2_score.write('midi', fp=f"exp1/Midi_Eval/sample_2_{i}.mid")
 
         #print("Generated melody")
-        pitch = tmidi_pred[0].argmax(dim=-1).cpu().numpy()
+        pitch = tmidi_pred[i].argmax(dim=-1).cpu().numpy()
         generated_score = tmidi_to_score(pitch, hparams['seq_len'])
         generated_score.write('midi', fp=f"exp1/Midi_Eval/generated_score_{i}.mid")                                                                                    
