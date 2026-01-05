@@ -9,17 +9,10 @@ import time
 import numpy as np
 
 import torch
-from torch.utils.data import Dataset, DataLoader, random_split
+from torch.utils.data import DataLoader, random_split
 import torch.nn as nn
-import torch.optim as optim
-from torchinfo import summary
 
 from music21 import converter, note, stream, meter
-from scipy.signal import butter, filtfilt
-
-import matplotlib.pyplot as plt
-
-from random import randrange
 
 # Seed definition
 seed = 123
@@ -28,7 +21,8 @@ _ = torch.manual_seed(seed)
 _ = torch.cuda.manual_seed(seed)
 
 # Work on GPU if it is available in the machine, otherwise run on CPU
-device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+#device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+device = 'cpu'
 print(device)
 
 #--------- Definition of Pytorch dataset and Dataloader -------------#
@@ -269,8 +263,8 @@ with torch.no_grad():
         bar22 = sample_2[2] # frp
         x_curve = sample_2[2].float().unsqueeze(1).to(device)
 
-        tmidi_true, _, _ = compute_true_vectors(bar22)
-        tmidi_true = tmidi_true.long().to(device)
+        #tmidi_true, _, _ = compute_true_vectors(bar22)
+        #tmidi_true = tmidi_true.long().to(device)
 
         # Generate new bar
         bar3 = model(x_curve, x_context) # tmidi_pred, trp_pred, vchroma_pred, zrp_mu, zrp_logvar, zc_mu, zc_logvar
@@ -279,13 +273,13 @@ with torch.no_grad():
         # Save the results
         #print("First sample")
         sample_1_score = converter.parse(str(sample_1[3][0])).measure(1)
-        sample_1_score.write('midi', fp=f"Midi_Eval/sample_1{i}.mid")
+        sample_1_score.write('midi', fp=f"exp1/Midi_Eval/sample_1_{i}.mid")
 
         #print("Second sample")
         sample_2_score = converter.parse(str(sample_2[3][0])).measure(2)
-        sample_2_score.write('midi', fp=f"Midi_Eval/sample_2{i}.mid")
+        sample_2_score.write('midi', fp=f"exp1/Midi_Eval/sample_2_{i}.mid")
 
         #print("Generated melody")
         pitch = tmidi_pred[0].argmax(dim=-1).cpu().numpy()
         generated_score = tmidi_to_score(pitch, hparams['seq_len'])
-        generated_score.write('midi', fp=f"Midi_Eval/generated_score{i}.mid")                                                                                    
+        generated_score.write('midi', fp=f"exp1/Midi_Eval/generated_score_{i}.mid")                                                                                    
