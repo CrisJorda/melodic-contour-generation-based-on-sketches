@@ -6,7 +6,7 @@ import random
 from music21 import stream, meter, key, note
 
 # Definition of the path to the results folder
-results_folder = "synthetic_dataset"
+results_folder = "synthetics_dataset"
 
 # Definition of the constant variables
 num_bars = 2
