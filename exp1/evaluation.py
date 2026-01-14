@@ -3,9 +3,6 @@ from config import hparams
 from dataset import CombinedDataset
 from model import VariationalAutoencoder
 
-import os
-import time
-
 import numpy as np
 
 import torch
@@ -13,6 +10,8 @@ from torch.utils.data import DataLoader, random_split
 import torch.nn as nn
 
 from music21 import converter, note, stream, meter
+
+from dtaidistance import dtw
 
 # Seed definition
 seed = 123
@@ -208,6 +207,142 @@ model = model.to(device)
 print('Model loaded')
 
 # --------------- Evaluation ----------------
+def extract_pitch_contour(tokens):
+    contour = []
+    last_pitch = None
+    for tok in tokens:
+        if tok == 128:  # hold
+            if last_pitch is not None:
+                contour.append(last_pitch)
+        elif tok == 129:  # rest
+            continue  # skip rests
+        else:
+            contour.append(tok)
+            last_pitch = tok
+    return np.array(contour)
+
+def extract_rhythm_contour(tokens):
+    # Compute durations of all notes
+    durations = np.zeros(len(tokens))
+    element = 0
+
+    while element < len(tokens):
+        if tokens[element] < 128: # Note onset
+            dur = 1
+            next_element = element + 1
+            while next_element < len(tokens) and tokens[next_element] == 128:  # Hold
+                dur += 1
+                next_element += 1
+            durations[element] = dur
+            element = next_element
+        else: # Rest or hold
+            element += 1
+    #print(durations)
+
+    # Convert durations into density
+    density = np.zeros(len(tokens))
+
+    last_density = 0.0
+    for i in range(len(tokens)):
+        if durations[i] > 0:
+            relative_duration = durations[i] / len(tokens)
+            last_density = np.log2(1/relative_duration)
+        density[i] = last_density
+    #print(density)
+    
+    # 3-level quantization
+    quantized_density = np.zeros(len(tokens))
+    quantized_density[(density > 0) & (density <= 1.25)] = 0
+    quantized_density[(density > 1.25) & (density <= 3.29)] = 1
+    quantized_density[density > 3.29] = 2
+    #print(quantized_density)
+
+    # Subtract the minimum value
+    frr = quantized_density - np.min(quantized_density)
+
+    return frr
+
+def extract_pitch_classes(tokens):
+    pitch_classes = []
+    for tok in tokens:
+        if tok < 128: # ignore holds and rests
+            pitch_classes.append(tok % 12)
+    return pitch_classes
+
+def estimate_key(pitch_classes):
+    # Krumhansl key profiles
+    major_profile = np.array([6.35, 2.23, 3.48, 2.33, 4.38, 4.09,
+                              2.52, 5.19, 2.39, 3.66, 2.29, 2.88])
+    minor_profile = np.array([6.33, 2.68, 3.52, 5.38, 2.60, 3.53,
+                              2.54, 4.75, 3.98, 2.69, 3.34, 3.17])
+    
+    # Count occurrences of each pitch class
+    pitch_class_counts = np.zeros(12)
+    for pc in pitch_classes:
+        pitch_class_counts[pc] += 1
+
+    if pitch_class_counts.sum() == 0:
+        return None, None, set()  # No pitch classes found
+    
+    pitch_class_counts /= pitch_class_counts.sum()  # Normalize counts
+    
+    # Compute correlation with each key profile
+    max_correlation = -np.inf
+    best_tonic = None
+    best_mode = None
+    for tonic in range(12):
+        # Rotate profiles to match tonic
+        rotated_major = np.roll(major_profile, tonic)
+        rotated_minor = np.roll(minor_profile, tonic)
+        
+        # Compute correlation
+        corr_major = np.corrcoef(pitch_class_counts, rotated_major)[0, 1]
+        corr_minor = np.corrcoef(pitch_class_counts, rotated_minor)[0, 1]
+        
+        # Update best key if needed
+        if corr_major > max_correlation:
+            max_correlation = corr_major
+            best_tonic = tonic
+            best_mode = 'major'
+        if corr_minor > max_correlation:
+            max_correlation = corr_minor
+            best_tonic = tonic
+            best_mode = 'minor'
+    
+    # Determine the set of pitch classes in the estimated key
+    if best_mode == 'major':
+        scale = {0, 2, 4, 5, 7, 9, 11}
+    else:
+        scale = {0, 2, 3, 5, 7, 8, 10}
+
+    key_pcs = set()
+    for interval in scale:
+        key_pcs.add((best_tonic + interval) % 12)
+
+    return best_tonic, best_mode, key_pcs
+
+def context_matching(tokens_pred, tokens_context):
+    # Extract the pitch classes from the notes
+    pitch_classes_pred = extract_pitch_classes(tokens_pred)
+    pitch_classes_context = extract_pitch_classes(tokens_context)
+    
+    # Estimate key using Krumhansl algorithm
+    key_tonic, key_mode, key_pcs = estimate_key(pitch_classes_context)
+    
+    NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
+    best_tonic_name = NOTE_NAMES[key_tonic] if key_tonic is not None else None
+    #print(f'Estimated key: {best_tonic_name} {key_mode}')
+
+    if len(pitch_classes_pred) == 0 or len(key_pcs) == 0:
+        return 0.0
+
+    # Percentage of notes belonging to the estimated key
+    matches = 0
+    for pc in pitch_classes_pred:
+        if pc in key_pcs:
+            matches += 1
+    percentage_in_key = int(matches / len(pitch_classes_pred) * 100)
+    return percentage_in_key
 
 def tmidi_to_score(tmidi_tokens, seq_len):
     score = stream.Stream()
@@ -245,6 +380,11 @@ def tmidi_to_score(tmidi_tokens, seq_len):
 
     return score
 
+# Define the matching lists
+pitch_match_list = []
+rhythm_match_list = []
+context_match_list = []
+
 num_eval = 1 # change to 1000
 
 loader_iter = iter(test_dataloader)
@@ -263,23 +403,61 @@ with torch.no_grad():
         bar22 = sample_2[2] # frp
         x_curve = sample_2[2].float().unsqueeze(1).to(device)
 
-        #tmidi_true, _, _ = compute_true_vectors(bar22)
-        #tmidi_true = tmidi_true.long().to(device)
+        tmidi_true, _, _ = compute_true_vectors(sample_2[1])
+        tmidi_true = tmidi_true.long().to(device)
 
         # Generate new bar
         bar3 = model(x_curve, x_context) # tmidi_pred, trp_pred, vchroma_pred, zrp_mu, zrp_logvar, zc_mu, zc_logvar
-        tmidi_pred = bar3[0] 
+        tmidi_pred = bar3[0]
+
+        # Get tokens from bars
+        tmidi_true_tokens = tmidi_true[0]
+        tmidi_pred_tokens = tmidi_pred[0].argmax(dim=-1).cpu().numpy()
+        context_tokens = np.concatenate((sample_1[0][0].int(), sample_1[1][0].int())) # all bars from context sample
+        #print(context_tokens)
+
+        # Pitch contour matching
+        # Extract contour
+        tmidi_pred_pitch = extract_pitch_contour(tmidi_pred_tokens)
+        #print(tmidi_pred_pitch)
+        tmidi_true_pitch = extract_pitch_contour(tmidi_true_tokens)
+        #print(tmidi_true_pitch)
+
+        # Compute DTW
+        pitch_cost = dtw.distance(tmidi_pred_pitch, tmidi_true_pitch)
+        #print(pitch_cost)
+        pitch_match_list.append(pitch_cost)
+
+        # Rhythm contour matching
+        # Extract contour
+        tmidi_pred_rhythm = extract_rhythm_contour(tmidi_pred_tokens)
+        #print(tmidi_pred_rhythm)
+        tmidi_true_rhythm = extract_rhythm_contour(tmidi_true_tokens)
+        #print(tmidi_true_rhythm)
+
+        # Compute DTW
+        rhythm_cost = dtw.distance(tmidi_pred_rhythm, tmidi_true_rhythm)
+        #print(rhythm_cost)
+        rhythm_match_list.append(rhythm_cost)
+
+        # Context matching
+        percentage_in_key = context_matching(tmidi_pred_tokens, context_tokens)
+        #print(percentage_in_key)
+        context_match_list.append(percentage_in_key)
 
         # Save the results
         #print("First sample")
-        sample_1_score = converter.parse(str(sample_1[3][i]))
-        sample_1_score.write('midi', fp=f"exp1/Midi_Eval/sample_1_{i}.mid")
+        #sample_1_score = converter.parse(str(sample_1[3][0])).measure(1)
+        #sample_1_score.write('midi', fp=f"Midi_Eval/sample_1_{i}.mid")
+        #sample_1_score.show()
 
         #print("Second sample")
-        sample_2_score = converter.parse(str(sample_2[3][i]))
-        sample_2_score.write('midi', fp=f"exp1/Midi_Eval/sample_2_{i}.mid")
+        #sample_2_score = converter.parse(str(sample_2[3][0])).measure(2)
+        #sample_2_score.write('midi', fp=f"Midi_Eval/sample_2_{i}.mid")
+        #sample_2_score.show()
 
         #print("Generated melody")
-        pitch = tmidi_pred[i].argmax(dim=-1).cpu().numpy()
-        generated_score = tmidi_to_score(pitch, hparams['seq_len'])
-        generated_score.write('midi', fp=f"exp1/Midi_Eval/generated_score_{i}.mid")                                                                                    
+        #generated_score = tmidi_to_score(tmidi_pred_tokens, hparams['seq_len'])
+        #generated_score.write('midi', fp=f"Midi_Eval/generated_score_{i}.mid")
+        #generated_score.show()                                                                                  
+                                                                            
