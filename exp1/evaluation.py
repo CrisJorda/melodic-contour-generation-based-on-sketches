@@ -22,7 +22,8 @@ _ = torch.manual_seed(seed)
 _ = torch.cuda.manual_seed(seed)
 
 # Work on GPU if it is available in the machine, otherwise run on CPU
-device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+#device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+device = torch.device('cpu')
 print(device)
 
 #--------- Definition of Pytorch dataset and Dataloader -------------#
