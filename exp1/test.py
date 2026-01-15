@@ -18,146 +18,58 @@ _ = torch.manual_seed(seed)
 _ = torch.cuda.manual_seed(seed)
 
 # Work on GPU if it is available in the machine, otherwise run on CPU
-device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+#device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+device = torch.device('cpu')
 print(device)
 
 #--------- Definition of Pytorch dataset and Dataloader -------------#
 # Definition of the dataset folders
-irish_root = '/home/cristina/melodic-contour-generation-based-on-sketches/irishtunes_dataset'
-synthetic_root = '/home/cristina/melodic-contour-generation-based-on-sketches/synthetics_dataset'
+#irish_root = '/home/cristina/melodic-contour-generation-based-on-sketches/irishtunes_dataset'
+#synthetic_root = '/home/cristina/melodic-contour-generation-based-on-sketches/synthetics_dataset'
+weird_root = '/home/cristina/melodic-contour-generation-based-on-sketches/weird_dataset'
 
 # Create one dataset for all data
-combined_dataset = CombinedDataset(irish_root, synthetic_root)
+combined_dataset = CombinedDataset(weird_root, None)
+test_dataset = combined_dataset
 
 # Determine split sizes
-total_size = len(combined_dataset)
-train_size = int(0.7 * total_size)
-val_size = int(0.2 * total_size)
-test_size = total_size - train_size - val_size
+#total_size = len(combined_dataset)
+#test_size = int(1 * total_size)
+#val_size = int(0 * total_size)
+#train_size = total_size - test_size - val_size
 
 # Split the dataset
-train_dataset, val_dataset, test_dataset = random_split(
-    combined_dataset, [train_size, val_size, test_size],
-    generator=torch.Generator().manual_seed(42)
-)
+
+#train_dataset, val_dataset, test_dataset = random_split(
+#    combined_dataset, [train_size, val_size, test_size],
+#    generator=torch.Generator().manual_seed(42)
+#)
 
 # Dataloaders initialization
-train_dataloader = DataLoader(
-    dataset=train_dataset,
-    batch_size=hparams['batch_size'],
-    shuffle=True,
-    drop_last=False,
-)
+#train_dataloader = DataLoader(
+#    dataset=train_dataset,
+#    batch_size=hparams['batch_size'],
+#    shuffle=True,
+#    drop_last=False,
+#)
 
-val_dataloader = DataLoader(
-    dataset=val_dataset,
-    batch_size=hparams['batch_size'],
-    shuffle=False,
-    drop_last=False,
-)
+#val_dataloader = DataLoader(
+#    dataset=val_dataset,
+#    batch_size=hparams['batch_size'],
+#    shuffle=False,
+#    drop_last=False,
+#)
 
 test_dataloader = DataLoader(
     dataset=test_dataset,
-    batch_size=hparams['batch_size'],
+    batch_size=4,
     shuffle=False,
     drop_last=False,
 )
 
-print("Train samples:", len(train_dataset))
-print("Validation samples:", len(val_dataset))
+#print("Train samples:", len(train_dataset))
+#print("Validation samples:", len(val_dataset))
 print("Test samples:", len(test_dataset))
-
-# Function for extracting ground truth vectors
-def compute_true_vectors(bar2_pitches):
-    """
-    Obtain Tmidi true and Trp true from the ground truth pitch vector of the 2nd bar
-
-    Args:
-        bar2_pitches: [B, 48] of MIDI pitches (0 means rest)
-
-    Returns:
-        tmidi_true: [B, 24] tokens (0-127 = notes, 128 = hold, 129 = rest)
-        trp_true: [B, 24] quantized relative pitch curve'
-    """
-
-    # Define constants from hparams
-    batch = bar2_pitches.size(0)
-    seq_len_dataset = hparams['seq_len_dataset']
-    seq_len = hparams['seq_len']
-
-    # Define grid beat ticks
-    beat_ticks = [0, 1/4, 1/3, 1/2, 2/3, 3/4] # 6 uneven ticks per beat -> 24 ticks per measure
-
-    # Define quantization bins
-    bins = np.array([-9, -5, -1, 0, 1, 5, 9], dtype=np.float32)
-
-    # Define empty vectors
-    tmidi_true = torch.zeros(batch, seq_len, dtype=torch.float32)
-    trp_true = torch.zeros(batch, seq_len, dtype=torch.float32)
-    vchroma_true = torch.zeros(batch, 12, dtype=torch.float32)
-
-    # Create new grid
-    # - In seq_len_dataset = 48, the grid is even, so 12 steps per beat (48/4)
-    # - Map the 6 uneven ticks into 12 uniform steps
-    tick_indices = np.zeros_like(beat_ticks) # = [0, 3, 4, 6, 8, 9]
-    for t in range(len(beat_ticks)):
-        tick_indices[t] = round(beat_ticks[t]*12)
-
-    # - Create grid
-    grid = [] # = [0, 3, 4, 6, 8, 9, 12, 15, 16, 18, 20, 21, 24, 27, 28, 30, 32, 33, 36, 39, 40, 42, 44, 45]
-    for beat in range(4):
-        base = beat * 12
-        for tick in tick_indices:
-            grid += [int(base + tick)]
-
-    for b in range(batch):
-        pitches = bar2_pitches[b] # has seq_len_dataset
-
-        # Compute vchroma_true
-        # Get pitch classes
-        pitch_classes = np.unique(pitches % 12)
-        # Set active classes to 1
-        vchroma_true[b, pitch_classes] = 1.0
-
-        # Map bar2_pitches to uneven 24-positions grid
-        pitches = pitches[grid] # has seq_len
-
-        # Compute Tmidi_true
-        # Go through the pitch vector of each batch
-        for t in range(seq_len):
-            if pitches[t] == 0:
-                tmidi_true[b,t] = 129 # rest condition
-            elif t>0 and pitches[t] == pitches[t-1] and pitches[t] != 0:
-                tmidi_true[b,t] = 128 # hold condition
-            else:
-                tmidi_true[b,t] = pitches[t] # MIDI pitch number for onset position
-        
-        # Compute Trp_true
-        # Get the onsets vector
-        onsets = np.where((tmidi_true[b] >= 0) & (tmidi_true[b] <= 127))[0]
-
-        if len(onsets) >= 2:
-            for pos in range(len(onsets) - 1):
-                # For every pair of consecutive onsets in positions i and j = i + n where n > 0, 
-                # Calculate the MIDI interval Δ = Tmidi[j] - Tmidi[i]
-                i = onsets[pos].item()
-                j = onsets[pos + 1].item()
-                delta = tmidi_true[b, j] - tmidi_true[b, i]
-                n = j - i
-
-                # Then perform a linear interpolation between i + 1 and j (k points), resulting in Trp[k]
-                for k in range(i+1, j+1):
-                    trp_true[b, k] = delta * ((k-i)/n)
-        
-        # Quantize Trp_true
-        trp_quantizated = torch.zeros(batch, seq_len, dtype=torch.float32)
-        bins_tensor = torch.tensor(bins) # convert to tensor so it can be comptatible with trp_true
-        for k in range(seq_len):
-            diff = np.abs(bins_tensor - trp_true[b, k])
-            nearest_bin_idx = np.argmin(diff)
-            trp_quantizated[b, k] = nearest_bin_idx
-    
-    return tmidi_true, trp_quantizated, vchroma_true
 
 # Define loss function
 def loss_function(trp_pred, trp_true, tmidi_pred, tmidi_true,
@@ -298,7 +210,7 @@ def tmidi_to_score(tmidi_tokens, seq_len):
     return score
 
 # Show test scores
-bar1_pitches, bar2_pitches, frp, midi_path = next(iter(test_dataloader)) # 1 batch
+bar1_pitches, bar2_pitches, frp, midi_path, tmidi_true, trp_true, vchroma_true = next(iter(test_dataloader)) # 1 batch
 
 model.eval()
 model.to(device)
@@ -308,18 +220,17 @@ x_context = bar1_pitches.int().unsqueeze(1).to(device)
 # Apply model
 tmidi_pred, trp_pred, _, _, _, _, _ = model(x_curve, x_context)
 
-num_samples = 10
+num_samples = 4
 
 for i in range(num_samples):
     #print("First bar melody")
     first_bar_score = converter.parse(str(midi_path[i])).measure(1)
-    first_bar_score.write('midi', fp=f"Midi/first_bar_score{i}.mid")
+    first_bar_score.write('midi', fp=f"exp1/Midi_Weird/first_bar_score_{i}.mid")
 
     #print("Second bar original melody")
     second_bar_score = converter.parse(str(midi_path[i])).measure(2)
-    second_bar_score.write('midi', fp=f"Midi/second_bar_score{i}.mid")
-
+    second_bar_score.write('midi', fp=f"exp1/Midi_Weird/second_bar_score_{i}.mid")
     #print("Second bar generated melody")
     pitch = tmidi_pred[i].argmax(dim=-1).cpu().numpy()
     generated_score = tmidi_to_score(pitch, hparams['seq_len'])
-    generated_score.write('midi', fp=f"Midi/generated_score{i}.mid")
+    generated_score.write('midi', fp=f"exp1/Midi_Weird/generated_score_{i}.mid")
