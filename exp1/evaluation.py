@@ -63,7 +63,7 @@ val_dataloader = DataLoader(
 
 test_dataloader = DataLoader(
     dataset=test_dataset,
-    batch_size=hparams['batch_size'],
+    batch_size=1,
     shuffle=False,
     drop_last=False,
 )
@@ -295,18 +295,20 @@ pitch_match_list = []
 rhythm_match_list = []
 context_match_list = []
 
-num_eval = 1000 # change to 1000
+print(len(test_dataloader))
 
-loader_iter = iter(test_dataloader)
+num_eval = 1000 # change to 1000
 
 model.eval()
 
 with torch.no_grad():
-    for i in range(num_eval):
+    for i, (sample_1, sample_2) in enumerate(zip(test_dataloader, test_dataloader)):
+        if i >= num_eval:
+            break
+
         print(i)
 
-        sample_1 = next(loader_iter) # bar1_pitches, bar2_pitches, frp, midi_path, tmidi_true, trp_true, vchroma_true
-        sample_2 = next(loader_iter) # bar1_pitches, bar2_pitches, frp, midi_path, tmidi_true, trp_true, vchroma_true
+        # Each sample has: bar1_pitches, bar2_pitches, frp, midi_path, tmidi_true, trp_true, vchroma_true
 
         # Extract useful information
         bar11 = sample_1[0] # bar1_pitches
