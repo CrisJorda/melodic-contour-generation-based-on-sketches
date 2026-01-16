@@ -108,7 +108,7 @@ def loss_function(trp_pred, trp_true, tmidi_pred, tmidi_true,
     return loss_total, ce_loss_trp, ce_loss_tmidi, bce_loss_chroma, kl_total
 
 # --------------- Load trained model -----------------
-checkpoint_path = '/home/cristina/melodic-contour-generation-based-on-sketches/checkpoints/model_epoch_100.pth'
+checkpoint_path = '/home/cristina/melodic-contour-generation-based-on-sketches/exp1/checkpoints/model_epoch_100.pth'
 checkpoint = torch.load(checkpoint_path, map_location = torch.device('cpu'))
 
 model = VariationalAutoencoder(hparams['channels'], hparams['latent_dim'], hparams['vocab_size'], hparams['seq_len'], hparams['frp_len'], hparams['n_layers_encoder'], hparams['embedding_dim'], hparams['n_layers_gru'], hparams['hidden_dim_gru'], hparams['vocab_size_Trp'], hparams['chroma_dim'])
@@ -117,6 +117,37 @@ model = model.to(device)
 print('Model loaded')
 
 # --------------- Evaluation ----------------
+def extract_true_rhythm(true_tokens, pred_tokens):
+    # Extract true rhythm from true tokens
+    true_rhythm = []
+    for tok in true_tokens:
+        if tok == 128:  # hold
+            true_rhythm.append(1)
+        elif tok == 129:  # rest
+            true_rhythm.append(2)
+        else: # onset
+            true_rhythm.append(0)
+    
+    # Apply rhythm enforcement to predicted tokens
+    tokens_r = []
+    last_pitch = None
+
+    for i, rhythm in enumerate(true_rhythm):
+        if rhythm == 0:  # onset
+            if pred_tokens[i] < 128: # pred_tokens has valid onset in i
+                tokens_r.append(pred_tokens[i])
+                last_pitch = pred_tokens[i]
+            elif last_pitch is not None: # pred_tokens has hold or rest, use last valid pitch
+                tokens_r.append(last_pitch)
+            else: # no valid pitch yet, use rest
+                tokens_r.append(129)
+        elif rhythm == 1:  # hold
+            tokens_r.append(128)
+        elif rhythm == 2:  # rest
+            tokens_r.append(129)
+
+    return tokens_r
+
 def extract_pitch_contour(tokens):
     contour = []
     last_pitch = None
@@ -292,6 +323,7 @@ def tmidi_to_score(tmidi_tokens, seq_len):
 
 # Define the matching lists
 pitch_match_list = []
+pitch_r_match_list = []
 rhythm_match_list = []
 context_match_list = []
 
@@ -330,16 +362,26 @@ with torch.no_grad():
         #print(context_tokens)
 
         # Pitch contour matching
+        # Apply rhythm enforcement
+        tmidi_pred_tokens_r = extract_true_rhythm(tmidi_true_tokens, tmidi_pred_tokens)
+
         # Extract contour
         tmidi_pred_pitch = extract_pitch_contour(tmidi_pred_tokens)
         #print(tmidi_pred_pitch)
+        tmidi_pred_pitch_r = extract_pitch_contour(tmidi_pred_tokens_r)
+        #print(tmidi_pred_pitch_r)
         tmidi_true_pitch = extract_pitch_contour(tmidi_true_tokens)
         #print(tmidi_true_pitch)
 
-        # Compute DTW
+        # Compute DTW without rhythm enforcement
         pitch_cost = dtw.distance(tmidi_pred_pitch, tmidi_true_pitch)
         #print(pitch_cost)
         pitch_match_list.append(pitch_cost)
+
+        # Compute DTW with rhythm enforcement
+        pitch_r_cost = dtw.distance(tmidi_pred_pitch_r, tmidi_true_pitch)
+        #print(pitch_cost)
+        pitch_r_match_list.append(pitch_r_cost)
 
         # Rhythm contour matching
         # Extract contour
@@ -376,12 +418,14 @@ with torch.no_grad():
 
 # Replace these with your actual arrays
 pitch_match_list = np.array(pitch_match_list)
+pitch_r_match_list = np.array(pitch_r_match_list)
 rhythm_match_list = np.array(rhythm_match_list)
 context_match_list = np.array(context_match_list)
 
 # Compute mean and standard deviation
 results = {
-    'pitch': {'mean': np.mean(pitch_match_list), 'std': np.std(pitch_match_list)},
+    'pitch without rhythm enforcement': {'mean': np.mean(pitch_match_list), 'std': np.std(pitch_match_list)},
+    'pitch with rhythm enforcement': {'mean': np.mean(pitch_r_match_list), 'std': np.std(pitch_r_match_list)},
     'rhythm': {'mean': np.mean(rhythm_match_list), 'std': np.std(rhythm_match_list)},
     'context': {'average': int(np.round(np.mean(context_match_list)))},
 }
