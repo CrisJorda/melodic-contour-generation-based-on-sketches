@@ -358,7 +358,7 @@ context_match_list = []
 
 #print(len(test_dataloader))
 
-num_eval = 10 # change to 1000
+num_eval = 1000 # change to 1000
 
 loader_iter = iter(test_dataloader)
 
@@ -389,6 +389,7 @@ with torch.no_grad():
         tmidi_pred = bar3[0]
 
         # Save the scores
+        """
         first_bar_score = converter.parse(str(sample_1[3][0])).measure(1)
         first_bar_score.write('midi', fp=f"exp1/Midi_Eval/first_bar_score_{i}.mid")
 
@@ -398,12 +399,13 @@ with torch.no_grad():
         pitch = tmidi_pred[0].argmax(dim=-1).cpu().numpy()
         generated_score = tmidi_to_score(pitch, hparams['seq_len'])
         generated_score.write('midi', fp=f"exp1/Midi_Eval/generated_score_{i}.mid")
+        """
 
         # Get tokens from bars
         tmidi_true_tokens = tmidi_true_2[0]
-        print(tmidi_true_tokens)
+        #print(tmidi_true_tokens)
         tmidi_pred_tokens = tmidi_pred[0].argmax(dim=-1).cpu().numpy()
-        print(tmidi_pred_tokens)
+        #print(tmidi_pred_tokens)
         context_tokens = np.concatenate((bar11[0].int(), bar12[0].int())) # all bars from context sample
         #print(context_tokens)
 
@@ -420,6 +422,7 @@ with torch.no_grad():
         #print(tmidi_true_pitch)
 
         # Save the plot with the 3 frps
+        """
         plt.figure(figsize=(10, 3))
 
         plt.plot(tmidi_true_pitch, label="Ground truth", linewidth=2)
@@ -434,8 +437,9 @@ with torch.no_grad():
         plt.grid(True, alpha=0.3)
         plt.tight_layout()
 
-        plt.savefig(fp=f"exp1/Midi_Eval/plot_{i}.png", dpi=150)
+        plt.savefig(f"exp1/Midi_Eval/plot_{i}.png", dpi=150)
         plt.close()
+        """
 
         # Compute DTW without rhythm enforcement
         pitch_cost = dtw.distance(tmidi_pred_pitch, tmidi_true_pitch)
