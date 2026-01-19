@@ -327,38 +327,55 @@ pitch_r_match_list = []
 rhythm_match_list = []
 context_match_list = []
 
-print(len(test_dataloader))
+#print(len(test_dataloader))
 
-num_eval = 1000 # change to 1000
+num_eval = 10 # change to 1000
+
+loader_iter = iter(test_dataloader)
 
 model.eval()
 
 with torch.no_grad():
-    for i, (sample_1, sample_2) in enumerate(zip(test_dataloader, test_dataloader)):
-        if i >= num_eval:
-            break
-
+    for i in range(num_eval):
         print(i)
+
+        sample_1 = next(loader_iter)
+        sample_2 = next(loader_iter)
 
         # Each sample has: bar1_pitches, bar2_pitches, frp, midi_path, tmidi_true, trp_true, vchroma_true
 
         # Extract useful information
         bar11 = sample_1[0] # bar1_pitches
         x_context = bar11.int().unsqueeze(1).to(device)
+        bar12 = sample_1[1] # bar2_pitches
 
         bar22 = sample_2[2] # frp
-        x_curve = sample_2[2].float().unsqueeze(1).to(device)
+        x_curve = bar22.float().unsqueeze(1).to(device)
 
-        tmidi_true = sample_2[4].long().to(device)
+        tmidi_true_1 = sample_1[4].long().to(device) # sample_1 if comparing bar_12 with bar_3
+        tmidi_true_2 = sample_2[4].long().to(device) # sample_2 if comparing bar_22 with bar_3
 
         # Generate new bar
         bar3 = model(x_curve, x_context) # tmidi_pred, trp_pred, vchroma_pred, zrp_mu, zrp_logvar, zc_mu, zc_logvar
         tmidi_pred = bar3[0]
 
+        # Save the scores
+        first_bar_score = converter.parse(str(sample_1[3][0])).measure(1)
+        first_bar_score.write('midi', fp=f"exp1/Midi_Eval/first_bar_score_{i}.mid")
+
+        second_bar_score = converter.parse(str(sample_2[3][0])).measure(2)
+        second_bar_score.write('midi', fp=f"exp1/Midi_Eval/second_bar_score_{i}.mid")
+
+        pitch = tmidi_pred[0].argmax(dim=-1).cpu().numpy()
+        generated_score = tmidi_to_score(pitch, hparams['seq_len'])
+        generated_score.write('midi', fp=f"exp1/Midi_Eval/generated_score_{i}.mid")
+
         # Get tokens from bars
-        tmidi_true_tokens = tmidi_true[0]
+        tmidi_true_tokens = tmidi_true_2[0]
+        print(tmidi_true_tokens)
         tmidi_pred_tokens = tmidi_pred[0].argmax(dim=-1).cpu().numpy()
-        context_tokens = np.concatenate((sample_1[0][0].int(), sample_1[1][0].int())) # all bars from context sample
+        print(tmidi_pred_tokens)
+        context_tokens = np.concatenate((bar11[0].int(), bar12[0].int())) # all bars from context sample
         #print(context_tokens)
 
         # Pitch contour matching
@@ -375,12 +392,12 @@ with torch.no_grad():
 
         # Compute DTW without rhythm enforcement
         pitch_cost = dtw.distance(tmidi_pred_pitch, tmidi_true_pitch)
-        #print(pitch_cost)
+        print(pitch_cost)
         pitch_match_list.append(pitch_cost)
 
         # Compute DTW with rhythm enforcement
         pitch_r_cost = dtw.distance(tmidi_pred_pitch_r, tmidi_true_pitch)
-        #print(pitch_cost)
+        print(pitch_r_cost)
         pitch_r_match_list.append(pitch_r_cost)
 
         # Rhythm contour matching
@@ -431,7 +448,7 @@ results = {
 }
 
 # Save results to a text file
-output_file = os.path.join('exp1', 'alignment_cost.txt')
+output_file = os.path.join('exp1', 'alignment_cost_22.txt')
 with open(output_file, 'w') as f:
     for key, stats in results.items():
         if key == 'context':
