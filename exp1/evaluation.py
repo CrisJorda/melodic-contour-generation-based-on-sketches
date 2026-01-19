@@ -12,8 +12,11 @@ from torch.utils.data import DataLoader, random_split
 import torch.nn as nn
 
 from music21 import converter, note, stream, meter
+from scipy.signal import butter, filtfilt
 
 from dtaidistance import dtw
+
+import matplotlib.pyplot as plt
 
 # Seed definition
 seed = 123
@@ -149,18 +152,44 @@ def extract_true_rhythm(true_tokens, pred_tokens):
     return tokens_r
 
 def extract_pitch_contour(tokens):
-    contour = []
+    pitches = []
+    onsets = []
+    
+    # Extract contours
     last_pitch = None
-    for tok in tokens:
-        if tok == 128:  # hold
-            if last_pitch is not None:
-                contour.append(last_pitch)
-        elif tok == 129:  # rest
-            continue  # skip rests
-        else:
-            contour.append(tok)
+    for i, tok in enumerate(tokens):
+        if tok < 128:  # onset
+            pitches.append(tok)
             last_pitch = tok
-    return np.array(contour)
+            onsets.append(i)
+    
+    onsets = np.array(onsets, dtype=np.float32)
+    pitches = np.array(pitches, dtype=np.int16)
+
+    # Compute the relative pitch function
+    frp_len = hparams['frp_len']
+    filter_cutoff = 1/50
+    filter_order = 5
+
+    # Piecewise-linear interpolation
+    x = np.linspace(onsets.min(), onsets.max(), frp_len)
+    y = np.interp(x, onsets, pitches)
+
+    # Low-pass Butterworth filtering
+    # to smooth the linear interpolation
+    b, a = butter(filter_order, filter_cutoff, btype='low')
+    y_smooth = filtfilt(b, a, y)
+
+    # Normalization
+    # Find midpoint in the curve range
+    pitch_range = y_smooth.max() - y_smooth.min()
+    middle_val = y_smooth.min() + pitch_range/2
+
+    # Substract midpoint and divide by 12
+    # 12 because 12 semitones = 1 octave
+    frp = (y_smooth - middle_val) / 12.0
+
+    return frp.astype(np.float32)
 
 def extract_rhythm_contour(tokens):
     # Compute durations of all notes
@@ -390,14 +419,32 @@ with torch.no_grad():
         tmidi_true_pitch = extract_pitch_contour(tmidi_true_tokens)
         #print(tmidi_true_pitch)
 
+        # Save the plot with the 3 frps
+        plt.figure(figsize=(10, 3))
+
+        plt.plot(tmidi_true_pitch, label="Ground truth", linewidth=2)
+        plt.plot(tmidi_pred_pitch, label="Predicted", linestyle="--")
+        plt.plot(tmidi_pred_pitch_r, label="Predicted (rhythm enforced)", linestyle=":")
+
+        plt.title("Pitch contour comparison", fontsize=14)
+        plt.ylabel("MIDI pitch")
+        plt.xlabel("Contour index")
+
+        plt.legend(fontsize=11)
+        plt.grid(True, alpha=0.3)
+        plt.tight_layout()
+
+        plt.savefig(fp=f"exp1/Midi_Eval/plot_{i}.png", dpi=150)
+        plt.close()
+
         # Compute DTW without rhythm enforcement
         pitch_cost = dtw.distance(tmidi_pred_pitch, tmidi_true_pitch)
-        print(pitch_cost)
+        #print(pitch_cost)
         pitch_match_list.append(pitch_cost)
 
         # Compute DTW with rhythm enforcement
         pitch_r_cost = dtw.distance(tmidi_pred_pitch_r, tmidi_true_pitch)
-        print(pitch_r_cost)
+        #print(pitch_r_cost)
         pitch_r_match_list.append(pitch_r_cost)
 
         # Rhythm contour matching
