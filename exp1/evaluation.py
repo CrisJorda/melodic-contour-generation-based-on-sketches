@@ -156,11 +156,9 @@ def extract_pitch_contour(tokens):
     onsets = []
     
     # Extract contours
-    last_pitch = None
     for i, tok in enumerate(tokens):
         if tok < 128:  # onset
             pitches.append(tok)
-            last_pitch = tok
             onsets.append(i)
     
     onsets = np.array(onsets, dtype=np.float32)
@@ -291,9 +289,26 @@ def estimate_key(pitch_classes):
 
     return best_tonic, best_mode, key_pcs
 
-def context_matching(tokens_pred, tokens_context):
+def context_matching(tokens_pred, context):
+    # Convert the context sequence to tokens
+    tokens_context = []
+    prev_pitch = None
+    for element in context:
+        if element is None or element == 0: # rest
+            tokens_context.append(129)
+            prev_pitch = None
+        elif prev_pitch is None or element != prev_pitch: # onset
+            tokens_context.append(int(element))
+            prev_pitch = int(element)
+        else: # hold
+            tokens_context.append(128)
+            prev_pitch = int(element)
+
+    #print(tokens_context)
+    #print(np.array(tokens_pred))
+
     # Extract the pitch classes from the notes
-    pitch_classes_pred = extract_pitch_classes(tokens_pred)
+    pitch_classes_pred = extract_pitch_classes(np.array(tokens_pred))
     pitch_classes_context = extract_pitch_classes(tokens_context)
     
     # Estimate key using Krumhansl algorithm
@@ -358,7 +373,7 @@ context_match_list = []
 
 #print(len(test_dataloader))
 
-num_eval = 1000 # change to 1000
+num_eval = 10 # change to 1000
 
 loader_iter = iter(test_dataloader)
 
@@ -406,8 +421,9 @@ with torch.no_grad():
         #print(tmidi_true_tokens)
         tmidi_pred_tokens = tmidi_pred[0].argmax(dim=-1).cpu().numpy()
         #print(tmidi_pred_tokens)
-        context_tokens = np.concatenate((bar11[0].int(), bar12[0].int())) # all bars from context sample
-        #print(context_tokens)
+
+        context = np.concatenate((bar11[0].int(), bar12[0].int())) # all bars from context sample
+        #print(context)
 
         # Pitch contour matching
         # Apply rhythm enforcement
@@ -422,24 +438,26 @@ with torch.no_grad():
         #print(tmidi_true_pitch)
 
         # Save the plot with the 3 frps
-        """
+        
         plt.figure(figsize=(10, 3))
 
         plt.plot(tmidi_true_pitch, label="Ground truth", linewidth=2)
         plt.plot(tmidi_pred_pitch, label="Predicted", linestyle="--")
         plt.plot(tmidi_pred_pitch_r, label="Predicted (rhythm enforced)", linestyle=":")
 
-        plt.title("Pitch contour comparison", fontsize=14)
-        plt.ylabel("MIDI pitch")
-        plt.xlabel("Contour index")
+        plt.title("Relative pitch function", fontsize=14)
+        plt.ylabel("Normalized pitch (RPF)")
+        plt.xlabel("Time (512 points)")
+
+        plt.ylim(-1, 1)
 
         plt.legend(fontsize=11)
-        plt.grid(True, alpha=0.3)
+        plt.grid(True)
         plt.tight_layout()
 
         plt.savefig(f"exp1/Midi_Eval/plot_{i}.png", dpi=150)
         plt.close()
-        """
+        
 
         # Compute DTW without rhythm enforcement
         pitch_cost = dtw.distance(tmidi_pred_pitch, tmidi_true_pitch)
@@ -464,25 +482,9 @@ with torch.no_grad():
         rhythm_match_list.append(rhythm_cost)
 
         # Context matching
-        percentage_in_key = context_matching(tmidi_pred_tokens, context_tokens)
+        percentage_in_key = context_matching(tmidi_pred_tokens, context)
         #print(percentage_in_key)
-        context_match_list.append(percentage_in_key)
-
-        # Save the results
-        #print("First sample")
-        #sample_1_score = converter.parse(str(sample_1[3][0])).measure(1)
-        #sample_1_score.write('midi', fp=f"Midi_Eval/sample_1_{i}.mid")
-        #sample_1_score.show()
-
-        #print("Second sample")
-        #sample_2_score = converter.parse(str(sample_2[3][0])).measure(2)
-        #sample_2_score.write('midi', fp=f"Midi_Eval/sample_2_{i}.mid")
-        #sample_2_score.show()
-
-        #print("Generated melody")
-        #generated_score = tmidi_to_score(tmidi_pred_tokens, hparams['seq_len'])
-        #generated_score.write('midi', fp=f"Midi_Eval/generated_score_{i}.mid")
-        #generated_score.show()                                                                                                                                                   
+        context_match_list.append(percentage_in_key)                                                                                                                                              
 
 # Replace these with your actual arrays
 pitch_match_list = np.array(pitch_match_list)
@@ -498,6 +500,7 @@ results = {
     'context': {'average': int(np.round(np.mean(context_match_list)))},
 }
 
+"""
 # Save results to a text file
 output_file = os.path.join('exp1', 'alignment_cost_22.txt')
 with open(output_file, 'w') as f:
@@ -511,3 +514,4 @@ with open(output_file, 'w') as f:
             f.write(f"  Std: {stats['std']:.4f}\n\n")
 
 print(f"Results saved to {output_file}")
+"""

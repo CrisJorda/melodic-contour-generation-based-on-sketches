@@ -1,15 +1,15 @@
 pitch without rhythm enforcement:
-  Mean: 20.3422
-  Std: 10.6112
+  Mean: 4.8347
+  Std: 3.0225
 
 pitch with rhythm enforcement:
-  Mean: 20.1309
-  Std: 11.2999
+  Mean: 4.7438
+  Std: 3.1694
 
 rhythm:
   Mean: 1.2427
   Std: 1.5162
 
 context:
-  Average: 94%
+  Average: 96%
 
