@@ -74,98 +74,6 @@ print("Validation samples:", len(val_dataset))
 print("Test samples:", len(test_dataset))
 
 # ------------------- Training -----------------------------
-# Function for extracting ground truth vectors
-def compute_true_vectors(bar2_pitches):
-    """
-    Obtain Tmidi true and Trp true from the ground truth pitch vector of the 2nd bar
-
-    Args:
-        bar2_pitches: [B, 48] of MIDI pitches (0 means rest)
-
-    Returns:
-        tmidi_true: [B, 24] tokens (0-127 = notes, 128 = hold, 129 = rest)
-        trp_true: [B, 24] quantized relative pitch curve'
-    """
-
-    # Define constants from hparams
-    batch = bar2_pitches.size(0)
-    seq_len_dataset = hparams['seq_len_dataset']
-    seq_len = hparams['seq_len']
-
-    # Define grid beat ticks
-    beat_ticks = [0, 1/4, 1/3, 1/2, 2/3, 3/4] # 6 uneven ticks per beat -> 24 ticks per measure
-
-    # Define quantization bins
-    bins = np.array([-9, -5, -1, 0, 1, 5, 9], dtype=np.float32)
-
-    # Define empty vectors
-    tmidi_true = torch.zeros(batch, seq_len, dtype=torch.float32)
-    trp_true = torch.zeros(batch, seq_len, dtype=torch.float32)
-    vchroma_true = torch.zeros(batch, 12, dtype=torch.float32)
-
-    # Create new grid
-    # - In seq_len_dataset = 48, the grid is even, so 12 steps per beat (48/4)
-    # - Map the 6 uneven ticks into 12 uniform steps
-    tick_indices = np.zeros_like(beat_ticks) # = [0, 3, 4, 6, 8, 9]
-    for t in range(len(beat_ticks)):
-        tick_indices[t] = round(beat_ticks[t]*12)
-
-    # - Create grid
-    grid = [] # = [0, 3, 4, 6, 8, 9, 12, 15, 16, 18, 20, 21, 24, 27, 28, 30, 32, 33, 36, 39, 40, 42, 44, 45]
-    for beat in range(4):
-        base = beat * 12
-        for tick in tick_indices:
-            grid += [int(base + tick)]
-
-    for b in range(batch):
-        pitches = bar2_pitches[b] # has seq_len_dataset
-
-        # Compute vchroma_true
-        # Get pitch classes
-        pitch_classes = np.unique(pitches % 12)
-        # Set active classes to 1
-        vchroma_true[b, pitch_classes] = 1.0
-
-        # Map bar2_pitches to uneven 24-positions grid
-        pitches = pitches[grid] # has seq_len
-
-        # Compute Tmidi_true
-        # Go through the pitch vector of each batch
-        for t in range(seq_len):
-            if pitches[t] == 0:
-                tmidi_true[b,t] = 129 # rest condition
-            elif t>0 and pitches[t] == pitches[t-1] and pitches[t] != 0:
-                tmidi_true[b,t] = 128 # hold condition
-            else:
-                tmidi_true[b,t] = pitches[t] # MIDI pitch number for onset position
-        
-        # Compute Trp_true
-        # Get the onsets vector
-        onsets = np.where((tmidi_true[b] >= 0) & (tmidi_true[b] <= 127))[0]
-
-        if len(onsets) >= 2:
-            for pos in range(len(onsets) - 1):
-                # For every pair of consecutive onsets in positions i and j = i + n where n > 0, 
-                # Calculate the MIDI interval Δ = Tmidi[j] - Tmidi[i]
-                i = onsets[pos].item()
-                j = onsets[pos + 1].item()
-                delta = tmidi_true[b, j] - tmidi_true[b, i]
-                n = j - i
-
-                # Then perform a linear interpolation between i + 1 and j (k points), resulting in Trp[k]
-                for k in range(i+1, j+1):
-                    trp_true[b, k] = delta * ((k-i)/n)
-        
-        # Quantize Trp_true
-        trp_quantizated = torch.zeros(batch, seq_len, dtype=torch.float32)
-        bins_tensor = torch.tensor(bins) # convert to tensor so it can be comptatible with trp_true
-        for k in range(seq_len):
-            diff = np.abs(bins_tensor - trp_true[b, k])
-            nearest_bin_idx = np.argmin(diff)
-            trp_quantizated[b, k] = nearest_bin_idx
-    
-    return tmidi_true, trp_quantizated, vchroma_true
-
 # Define loss function
 def loss_function(trp_pred, trp_true, tmidi_pred, tmidi_true,
                   lambda_trp, lambda_tmidi,
@@ -209,10 +117,10 @@ optimizer = optim.Adam(params=model.parameters(), lr=hparams['learning_rate'])
 summary_model = summary(model, 
                         input_size=[(hparams['batch_size'], 1, hparams['frp_len']), (hparams['batch_size'], 1, hparams['seq_len_dataset'])],
                         dtypes=[torch.float, torch.int])
-print(summary_model)
+#print(summary_model)
 
 # Save checkpoint every 10 epochs
-checkpoints_dir = '/home/cristina/melodic-contour-generation-based-on-sketches/checkpoints'
+checkpoints_dir = '/home/cristina/melodic-contour-generation-based-on-sketches/exp2.1/checkpoints'
 os.makedirs(checkpoints_dir, exist_ok=True)
 
 # Early stopping settings
@@ -241,14 +149,13 @@ for epoch in range(hparams['num_epochs']):
     for i, batch in enumerate(train_dataloader):
         print(i)
         # Unpack dataset output
-        bar1_pitches, bar2_pitches, frp, midi_path = batch
+        bar1_pitches, bar2_pitches, frp, midi_path, tmidi_true, trp_true, vchroma_true = batch
         
         # Use FRP (pitch curve) and bar1_pitch (context) as inputs
         x_curve = frp.float().unsqueeze(1).to(device)
         x_context = bar1_pitches.int().unsqueeze(1).to(device)
 
         # Use bar2_pitches to get ground truth vectors
-        tmidi_true, trp_true, vchroma_true = compute_true_vectors(bar2_pitches)
         trp_true = trp_true.long().to(device)
         tmidi_true = tmidi_true.long().to(device)
         vchroma_true = vchroma_true.long().to(device)
@@ -295,14 +202,13 @@ for epoch in range(hparams['num_epochs']):
 
         for i, batch in enumerate(val_dataloader):
             # Unpack dataset output
-            bar1_pitches, bar2_pitches, frp, midi_path = batch
+            bar1_pitches, bar2_pitches, frp, midi_path, tmidi_true, trp_true, vchroma_true = batch
             
             # Use FRP (pitch curve) and bar1_pitch (context) as inputs
             x_curve = frp.float().unsqueeze(1).to(device)
             x_context = bar1_pitches.int().unsqueeze(1).to(device)
 
             # Use bar2_pitches to get ground truth vectors
-            tmidi_true, trp_true, vchroma_true = compute_true_vectors(bar2_pitches)
             trp_true = trp_true.long().to(device)
             tmidi_true = tmidi_true.long().to(device)
             vchroma_true = vchroma_true.long().to(device)
@@ -385,7 +291,7 @@ plt.ylabel("Total loss")
 plt.grid(True)
 plt.legend()
 
-plt.savefig("total_loss.png")
+plt.savefig("exp2.1/total_loss.png")
 plt.close()
 
 # Other losses curves
@@ -403,5 +309,5 @@ for i, loss_type in enumerate(loss_types):
     axs[i].grid(True)
 
 fig.legend(handles=[train_h, val_h], loc="upper center", bbox_to_anchor=(0.5, 1.15))
-plt.savefig("other_loss.png")
+plt.savefig("exp2.1/other_loss.png")
 plt.close()
