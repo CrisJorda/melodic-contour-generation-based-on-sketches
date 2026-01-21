@@ -12,8 +12,11 @@ from torch.utils.data import DataLoader, random_split
 import torch.nn as nn
 
 from music21 import converter, note, stream, meter
+from scipy.signal import butter, filtfilt
 
 from dtaidistance import dtw
+
+import matplotlib.pyplot as plt
 
 # Seed definition
 seed = 123
@@ -22,7 +25,8 @@ _ = torch.manual_seed(seed)
 _ = torch.cuda.manual_seed(seed)
 
 # Work on GPU if it is available in the machine, otherwise run on CPU
-device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+#device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+device = torch.device('cpu')
 print(device)
 
 #--------- Definition of Pytorch dataset and Dataloader -------------#
@@ -62,7 +66,7 @@ val_dataloader = DataLoader(
 
 test_dataloader = DataLoader(
     dataset=test_dataset,
-    batch_size=hparams['batch_size'],
+    batch_size=1,
     shuffle=False,
     drop_last=False,
 )
@@ -107,7 +111,7 @@ def loss_function(trp_pred, trp_true, tmidi_pred, tmidi_true,
     return loss_total, ce_loss_trp, ce_loss_tmidi, bce_loss_chroma, kl_total
 
 # --------------- Load trained model -----------------
-checkpoint_path = '/home/cristina/melodic-contour-generation-based-on-sketches/checkpoints/model_epoch_100.pth'
+checkpoint_path = '/home/cristina/melodic-contour-generation-based-on-sketches/exp1/checkpoints/model_epoch_100.pth'
 checkpoint = torch.load(checkpoint_path, map_location = torch.device('cpu'))
 
 model = VariationalAutoencoder(hparams['channels'], hparams['latent_dim'], hparams['vocab_size'], hparams['seq_len'], hparams['frp_len'], hparams['n_layers_encoder'], hparams['embedding_dim'], hparams['n_layers_gru'], hparams['hidden_dim_gru'], hparams['vocab_size_Trp'], hparams['chroma_dim'])
@@ -116,19 +120,74 @@ model = model.to(device)
 print('Model loaded')
 
 # --------------- Evaluation ----------------
-def extract_pitch_contour(tokens):
-    contour = []
-    last_pitch = None
-    for tok in tokens:
+def extract_true_rhythm(true_tokens, pred_tokens):
+    # Extract true rhythm from true tokens
+    true_rhythm = []
+    for tok in true_tokens:
         if tok == 128:  # hold
-            if last_pitch is not None:
-                contour.append(last_pitch)
+            true_rhythm.append(1)
         elif tok == 129:  # rest
-            continue  # skip rests
-        else:
-            contour.append(tok)
-            last_pitch = tok
-    return np.array(contour)
+            true_rhythm.append(2)
+        else: # onset
+            true_rhythm.append(0)
+    
+    # Apply rhythm enforcement to predicted tokens
+    tokens_r = []
+    last_pitch = None
+
+    for i, rhythm in enumerate(true_rhythm):
+        if rhythm == 0:  # onset
+            if pred_tokens[i] < 128: # pred_tokens has valid onset in i
+                tokens_r.append(pred_tokens[i])
+                last_pitch = pred_tokens[i]
+            elif last_pitch is not None: # pred_tokens has hold or rest, use last valid pitch
+                tokens_r.append(last_pitch)
+            else: # no valid pitch yet, use rest
+                tokens_r.append(129)
+        elif rhythm == 1:  # hold
+            tokens_r.append(128)
+        elif rhythm == 2:  # rest
+            tokens_r.append(129)
+
+    return tokens_r
+
+def extract_pitch_contour(tokens):
+    pitches = []
+    onsets = []
+    
+    # Extract contours
+    for i, tok in enumerate(tokens):
+        if tok < 128:  # onset
+            pitches.append(tok)
+            onsets.append(i)
+    
+    onsets = np.array(onsets, dtype=np.float32)
+    pitches = np.array(pitches, dtype=np.int16)
+
+    # Compute the relative pitch function
+    frp_len = hparams['frp_len']
+    filter_cutoff = 1/50
+    filter_order = 5
+
+    # Piecewise-linear interpolation
+    x = np.linspace(onsets.min(), onsets.max(), frp_len)
+    y = np.interp(x, onsets, pitches)
+
+    # Low-pass Butterworth filtering
+    # to smooth the linear interpolation
+    b, a = butter(filter_order, filter_cutoff, btype='low')
+    y_smooth = filtfilt(b, a, y)
+
+    # Normalization
+    # Find midpoint in the curve range
+    pitch_range = y_smooth.max() - y_smooth.min()
+    middle_val = y_smooth.min() + pitch_range/2
+
+    # Substract midpoint and divide by 12
+    # 12 because 12 semitones = 1 octave
+    frp = (y_smooth - middle_val) / 12.0
+
+    return frp.astype(np.float32)
 
 def extract_rhythm_contour(tokens):
     # Compute durations of all notes
@@ -230,9 +289,26 @@ def estimate_key(pitch_classes):
 
     return best_tonic, best_mode, key_pcs
 
-def context_matching(tokens_pred, tokens_context):
+def context_matching(tokens_pred, context):
+    # Convert the context sequence to tokens
+    tokens_context = []
+    prev_pitch = None
+    for element in context:
+        if element is None or element == 0: # rest
+            tokens_context.append(129)
+            prev_pitch = None
+        elif prev_pitch is None or element != prev_pitch: # onset
+            tokens_context.append(int(element))
+            prev_pitch = int(element)
+        else: # hold
+            tokens_context.append(128)
+            prev_pitch = int(element)
+
+    #print(tokens_context)
+    #print(np.array(tokens_pred))
+
     # Extract the pitch classes from the notes
-    pitch_classes_pred = extract_pitch_classes(tokens_pred)
+    pitch_classes_pred = extract_pitch_classes(np.array(tokens_pred))
     pitch_classes_context = extract_pitch_classes(tokens_context)
     
     # Estimate key using Krumhansl algorithm
@@ -291,10 +367,13 @@ def tmidi_to_score(tmidi_tokens, seq_len):
 
 # Define the matching lists
 pitch_match_list = []
+pitch_r_match_list = []
 rhythm_match_list = []
 context_match_list = []
 
-num_eval = 1000 # change to 1000
+#print(len(test_dataloader))
+
+num_eval = 10 # change to 1000
 
 loader_iter = iter(test_dataloader)
 
@@ -304,39 +383,91 @@ with torch.no_grad():
     for i in range(num_eval):
         print(i)
 
-        sample_1 = next(loader_iter) # bar1_pitches, bar2_pitches, frp, midi_path, tmidi_true, trp_true, vchroma_true
-        sample_2 = next(loader_iter) # bar1_pitches, bar2_pitches, frp, midi_path, tmidi_true, trp_true, vchroma_true
+        sample_1 = next(loader_iter)
+        sample_2 = next(loader_iter)
+
+        # Each sample has: bar1_pitches, bar2_pitches, frp, midi_path, tmidi_true, trp_true, vchroma_true
 
         # Extract useful information
         bar11 = sample_1[0] # bar1_pitches
         x_context = bar11.int().unsqueeze(1).to(device)
+        bar12 = sample_1[1] # bar2_pitches
 
         bar22 = sample_2[2] # frp
-        x_curve = sample_2[2].float().unsqueeze(1).to(device)
+        x_curve = bar22.float().unsqueeze(1).to(device)
 
-        tmidi_true = sample_2[4].long().to(device)
+        tmidi_true_1 = sample_1[4].long().to(device) # sample_1 if comparing bar_12 with bar_3
+        tmidi_true_2 = sample_2[4].long().to(device) # sample_2 if comparing bar_22 with bar_3
 
         # Generate new bar
         bar3 = model(x_curve, x_context) # tmidi_pred, trp_pred, vchroma_pred, zrp_mu, zrp_logvar, zc_mu, zc_logvar
         tmidi_pred = bar3[0]
 
+        # Save the scores
+        """
+        first_bar_score = converter.parse(str(sample_1[3][0])).measure(1)
+        first_bar_score.write('midi', fp=f"exp1/Midi_Eval/first_bar_score_{i}.mid")
+
+        second_bar_score = converter.parse(str(sample_2[3][0])).measure(2)
+        second_bar_score.write('midi', fp=f"exp1/Midi_Eval/second_bar_score_{i}.mid")
+
+        pitch = tmidi_pred[0].argmax(dim=-1).cpu().numpy()
+        generated_score = tmidi_to_score(pitch, hparams['seq_len'])
+        generated_score.write('midi', fp=f"exp1/Midi_Eval/generated_score_{i}.mid")
+        """
+
         # Get tokens from bars
-        tmidi_true_tokens = tmidi_true[0]
+        tmidi_true_tokens = tmidi_true_2[0]
+        #print(tmidi_true_tokens)
         tmidi_pred_tokens = tmidi_pred[0].argmax(dim=-1).cpu().numpy()
-        context_tokens = np.concatenate((sample_1[0][0].int(), sample_1[1][0].int())) # all bars from context sample
-        #print(context_tokens)
+        #print(tmidi_pred_tokens)
+
+        context = np.concatenate((bar11[0].int(), bar12[0].int())) # all bars from context sample
+        #print(context)
 
         # Pitch contour matching
+        # Apply rhythm enforcement
+        tmidi_pred_tokens_r = extract_true_rhythm(tmidi_true_tokens, tmidi_pred_tokens)
+
         # Extract contour
         tmidi_pred_pitch = extract_pitch_contour(tmidi_pred_tokens)
         #print(tmidi_pred_pitch)
+        tmidi_pred_pitch_r = extract_pitch_contour(tmidi_pred_tokens_r)
+        #print(tmidi_pred_pitch_r)
         tmidi_true_pitch = extract_pitch_contour(tmidi_true_tokens)
         #print(tmidi_true_pitch)
 
-        # Compute DTW
+        # Save the plot with the 3 frps
+        
+        plt.figure(figsize=(10, 3))
+
+        plt.plot(tmidi_true_pitch, label="Ground truth", linewidth=2)
+        plt.plot(tmidi_pred_pitch, label="Predicted", linestyle="--")
+        plt.plot(tmidi_pred_pitch_r, label="Predicted (rhythm enforced)", linestyle=":")
+
+        plt.title("Relative pitch function", fontsize=14)
+        plt.ylabel("Normalized pitch (RPF)")
+        plt.xlabel("Time (512 points)")
+
+        plt.ylim(-1, 1)
+
+        plt.legend(fontsize=11)
+        plt.grid(True)
+        plt.tight_layout()
+
+        plt.savefig(f"exp1/Midi_Eval/plot_{i}.png", dpi=150)
+        plt.close()
+        
+
+        # Compute DTW without rhythm enforcement
         pitch_cost = dtw.distance(tmidi_pred_pitch, tmidi_true_pitch)
         #print(pitch_cost)
         pitch_match_list.append(pitch_cost)
+
+        # Compute DTW with rhythm enforcement
+        pitch_r_cost = dtw.distance(tmidi_pred_pitch_r, tmidi_true_pitch)
+        #print(pitch_r_cost)
+        pitch_r_match_list.append(pitch_r_cost)
 
         # Rhythm contour matching
         # Extract contour
@@ -351,40 +482,27 @@ with torch.no_grad():
         rhythm_match_list.append(rhythm_cost)
 
         # Context matching
-        percentage_in_key = context_matching(tmidi_pred_tokens, context_tokens)
+        percentage_in_key = context_matching(tmidi_pred_tokens, context)
         #print(percentage_in_key)
-        context_match_list.append(percentage_in_key)
-
-        # Save the results
-        #print("First sample")
-        #sample_1_score = converter.parse(str(sample_1[3][0])).measure(1)
-        #sample_1_score.write('midi', fp=f"Midi_Eval/sample_1_{i}.mid")
-        #sample_1_score.show()
-
-        #print("Second sample")
-        #sample_2_score = converter.parse(str(sample_2[3][0])).measure(2)
-        #sample_2_score.write('midi', fp=f"Midi_Eval/sample_2_{i}.mid")
-        #sample_2_score.show()
-
-        #print("Generated melody")
-        #generated_score = tmidi_to_score(tmidi_pred_tokens, hparams['seq_len'])
-        #generated_score.write('midi', fp=f"Midi_Eval/generated_score_{i}.mid")
-        #generated_score.show()                                                                                                                                                   
+        context_match_list.append(percentage_in_key)                                                                                                                                              
 
 # Replace these with your actual arrays
 pitch_match_list = np.array(pitch_match_list)
+pitch_r_match_list = np.array(pitch_r_match_list)
 rhythm_match_list = np.array(rhythm_match_list)
 context_match_list = np.array(context_match_list)
 
 # Compute mean and standard deviation
 results = {
-    'pitch': {'mean': np.mean(pitch_match_list), 'std': np.std(pitch_match_list)},
+    'pitch without rhythm enforcement': {'mean': np.mean(pitch_match_list), 'std': np.std(pitch_match_list)},
+    'pitch with rhythm enforcement': {'mean': np.mean(pitch_r_match_list), 'std': np.std(pitch_r_match_list)},
     'rhythm': {'mean': np.mean(rhythm_match_list), 'std': np.std(rhythm_match_list)},
     'context': {'average': int(np.round(np.mean(context_match_list)))},
 }
 
+"""
 # Save results to a text file
-output_file = os.path.join('exp1', 'alignment_cost.txt')
+output_file = os.path.join('exp1', 'alignment_cost_22.txt')
 with open(output_file, 'w') as f:
     for key, stats in results.items():
         if key == 'context':
@@ -396,3 +514,4 @@ with open(output_file, 'w') as f:
             f.write(f"  Std: {stats['std']:.4f}\n\n")
 
 print(f"Results saved to {output_file}")
+"""
