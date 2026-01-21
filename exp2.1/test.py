@@ -23,12 +23,15 @@ print(device)
 
 #--------- Definition of Pytorch dataset and Dataloader -------------#
 # Definition of the dataset folders
-irish_root = '/home/cristina/melodic-contour-generation-based-on-sketches/irishtunes_dataset'
-synthetic_root = '/home/cristina/melodic-contour-generation-based-on-sketches/synthetics_dataset'
+#irish_root = '/home/cristina/melodic-contour-generation-based-on-sketches/irishtunes_dataset'
+#synthetic_root = '/home/cristina/melodic-contour-generation-based-on-sketches/synthetics_dataset'
+weird_root = '/home/cristina/melodic-contour-generation-based-on-sketches/weird_dataset'
 
 # Create one dataset for all data
-combined_dataset = CombinedDataset(irish_root, synthetic_root)
+combined_dataset = CombinedDataset(weird_root, None)
+test_dataset = combined_dataset
 
+"""
 # Determine split sizes
 total_size = len(combined_dataset)
 train_size = int(0.7 * total_size)
@@ -55,16 +58,17 @@ val_dataloader = DataLoader(
     shuffle=False,
     drop_last=False,
 )
+"""
 
 test_dataloader = DataLoader(
     dataset=test_dataset,
-    batch_size=hparams['batch_size'],
+    batch_size=4,
     shuffle=False,
     drop_last=False,
 )
 
-print("Train samples:", len(train_dataset))
-print("Validation samples:", len(val_dataset))
+#print("Train samples:", len(train_dataset))
+#print("Validation samples:", len(val_dataset))
 print("Test samples:", len(test_dataset))
 
 # Define loss function
@@ -216,18 +220,17 @@ x_context = bar1_pitches.int().unsqueeze(1).to(device)
 # Apply model
 tmidi_pred, trp_pred, _, _, _, _, _ = model(x_curve, x_context)
 
-num_samples = 10
+num_samples = 4
 
 for i in range(num_samples):
     #print("First bar melody")
     first_bar_score = converter.parse(str(midi_path[i])).measure(1)
-    first_bar_score.write('midi', fp=f"exp2.1/Midi/first_bar_score{i}.mid")
+    first_bar_score.write('midi', fp=f"exp2.1/Midi_Weird/first_bar_score{i}.mid")
 
     #print("Second bar original melody")
     second_bar_score = converter.parse(str(midi_path[i])).measure(2)
-    second_bar_score.write('midi', fp=f"exp2.1/Midi/second_bar_score{i}.mid")
-
+    second_bar_score.write('midi', fp=f"exp2.1/Midi_Weird/second_bar_score{i}.mid")
     #print("Second bar generated melody")
     pitch = tmidi_pred[i].argmax(dim=-1).cpu().numpy()
     generated_score = tmidi_to_score(pitch, hparams['seq_len'])
-    generated_score.write('midi', fp=f"exp2.1/Midi/generated_score{i}.mid")
+    generated_score.write('midi', fp=f"exp2.1/Midi_Weird/generated_score{i}.mid")
