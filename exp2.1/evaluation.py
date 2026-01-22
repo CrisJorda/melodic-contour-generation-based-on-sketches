@@ -67,7 +67,7 @@ val_dataloader = DataLoader(
 test_dataloader = DataLoader(
     dataset=test_dataset,
     batch_size=1,
-    shuffle=False,
+    shuffle=True,
     drop_last=False,
 )
 
@@ -169,23 +169,28 @@ def extract_pitch_contour(tokens):
     filter_cutoff = 1/50
     filter_order = 5
 
-    # Piecewise-linear interpolation
-    x = np.linspace(onsets.min(), onsets.max(), frp_len)
-    y = np.interp(x, onsets, pitches)
+    if len(onsets) == 0 or len(pitches) == 0:
+        # Check empty arrays
+        frp = np.zeros(frp_len, dtype=np.float32)
 
-    # Low-pass Butterworth filtering
-    # to smooth the linear interpolation
-    b, a = butter(filter_order, filter_cutoff, btype='low')
-    y_smooth = filtfilt(b, a, y)
+    else:
+        # Piecewise-linear interpolation
+        x = np.linspace(onsets.min(), onsets.max(), frp_len)
+        y = np.interp(x, onsets, pitches)
 
-    # Normalization
-    # Find midpoint in the curve range
-    pitch_range = y_smooth.max() - y_smooth.min()
-    middle_val = y_smooth.min() + pitch_range/2
+        # Low-pass Butterworth filtering
+        # to smooth the linear interpolation
+        b, a = butter(filter_order, filter_cutoff, btype='low')
+        y_smooth = filtfilt(b, a, y)
 
-    # Substract midpoint and divide by 12
-    # 12 because 12 semitones = 1 octave
-    frp = (y_smooth - middle_val) / 12.0
+        # Normalization
+        # Find midpoint in the curve range
+        pitch_range = y_smooth.max() - y_smooth.min()
+        middle_val = y_smooth.min() + pitch_range/2
+
+        # Substract midpoint and divide by 12
+        # 12 because 12 semitones = 1 octave
+        frp = (y_smooth - middle_val) / 12.0
 
     return frp.astype(np.float32)
 
@@ -373,7 +378,7 @@ context_match_list = []
 
 #print(len(test_dataloader))
 
-num_eval = 10 # change to 1000
+num_eval = 1000 # change to 1000
 
 loader_iter = iter(test_dataloader)
 
@@ -404,7 +409,7 @@ with torch.no_grad():
         tmidi_pred = bar3[0]
 
         # Save the scores
-        
+        """
         first_bar_score = converter.parse(str(sample_1[3][0])).measure(1)
         first_bar_score.write('midi', fp=f"exp2.1/Midi_Eval/first_bar_score_{i}.mid")
 
@@ -414,10 +419,10 @@ with torch.no_grad():
         pitch = tmidi_pred[0].argmax(dim=-1).cpu().numpy()
         generated_score = tmidi_to_score(pitch, hparams['seq_len'])
         generated_score.write('midi', fp=f"exp2.1/Midi_Eval/generated_score_{i}.mid")
-        
+        """
 
         # Get tokens from bars
-        tmidi_true_tokens = tmidi_true_2[0]
+        tmidi_true_tokens = tmidi_true_1[0]
         #print(tmidi_true_tokens)
         tmidi_pred_tokens = tmidi_pred[0].argmax(dim=-1).cpu().numpy()
         #print(tmidi_pred_tokens)
@@ -438,7 +443,7 @@ with torch.no_grad():
         #print(tmidi_true_pitch)
 
         # Save the plot with the 3 frps
-        
+        """
         plt.figure(figsize=(10, 3))
 
         plt.plot(tmidi_true_pitch, label="Ground truth", linewidth=2)
@@ -457,7 +462,7 @@ with torch.no_grad():
 
         plt.savefig(f"exp2.1/Midi_Eval/plot_{i}.png", dpi=150)
         plt.close()
-        
+        """
 
         # Compute DTW without rhythm enforcement
         pitch_cost = dtw.distance(tmidi_pred_pitch, tmidi_true_pitch)
@@ -482,7 +487,7 @@ with torch.no_grad():
         rhythm_match_list.append(rhythm_cost)
 
         # Context matching
-        percentage_in_key = context_matching(tmidi_pred_tokens, context)
+        percentage_in_key = context_matching(tmidi_true_tokens, context)
         #print(percentage_in_key)
         context_match_list.append(percentage_in_key)                                                                                                                                              
 
@@ -502,7 +507,7 @@ results = {
 
 
 # Save results to a text file
-output_file = os.path.join('exp2.1', 'alignment_cost_22.txt')
+output_file = os.path.join('exp2.1', 'alignment_cost_12.txt')
 with open(output_file, 'w') as f:
     for key, stats in results.items():
         if key == 'context':
