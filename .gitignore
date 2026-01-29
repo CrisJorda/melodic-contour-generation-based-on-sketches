@@ -3,5 +3,6 @@ irishtunes_dataset
 synthetics_dataset
 .ipynb_checkpoints
 checkpoints
+checkpoints_randseed
 temp.abc
 path_to_music21.ipynb

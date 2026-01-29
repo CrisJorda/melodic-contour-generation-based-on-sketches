@@ -1,0 +1,24 @@
+# Definition of hyper-parameters
+hparams = {
+    'seq_len_dataset': 48,
+    'batch_size':128,
+    'channels':64,
+    'latent_dim':85,
+    'frp_len': 512,
+    'vocab_size': 130,
+    'n_layers_encoder': 7,
+    'embedding_dim': 128,
+    'n_layers_gru': 2,
+    'hidden_dim_gru': 2048,
+    'seq_len': 24,
+    'vocab_size_Trp': 7,
+    'chroma_dim': 12,
+    
+    'num_epochs':20,
+    'lambda_trp': 1.0,
+    'lambda_tmidi': 1.0,
+    'lambda_chroma': 1.0,
+    'learning_rate':3e-5,
+    'variational_beta': 0.1,
+    'patience_early_stopping': 10,
+}
