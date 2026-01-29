@@ -9,6 +9,7 @@ from torch.utils.data import Dataset
 
 from music21 import converter, note
 from scipy.signal import butter, filtfilt
+from scipy.interpolate import make_lsq_spline
 
 #--------- Definition of Pytorch dataset and Dataloader -------------#
 
@@ -78,6 +79,28 @@ def compute_frp(onsets, pitches):
 
     # Return the function
     return frp.astype(np.float32)
+
+def compute_spline_derivative(frp):
+    # Define the spline parameters
+    x = np.linspace(0, 1, len(frp))
+    y = frp
+    control_points = 12 # Number of control points
+    k = 3  # Spline degree
+    num_internal_knots = control_points - k - 1 # 12-3-1 = 8 internal knots
+    t_internal = np.linspace(0, 1, num_internal_knots + 2)[1:-1]  # Internal knots vector
+    # Make the knot vector (k+1)-regular by adding boundary knots
+    t = np.r_[(x[0],)*(k+1),
+            t_internal,
+            (x[-1],)*(k+1)]
+
+    # Fit the spline
+    spline = make_lsq_spline(x, y, t, k)
+
+    # Compute the derivative of the spline
+    xs = np.linspace(0, 1, hparams['frp_len'])
+    spline_derivative = spline.derivative(1)(xs)
+
+    return spline_derivative
 
 # Function for extracting ground truth vectors
 def compute_true_vectors(bar2_pitches):
@@ -183,16 +206,19 @@ def process_bars(midi_path):
     # Compute the FRP for 2nd bar
     frp = compute_frp(bar2_onsets, bar2_pitches)
 
+    # Compute the spline representation of the FRP
+    spline_derivative = compute_spline_derivative(frp)
+
     # Convert all vectors to numpy arrays
     bar1_pitch_vector = np.array(bar1_pitch_vector)
     bar2_pitch_vector = np.array(bar2_pitch_vector)
-    frp = np.array(frp)
+    spline_derivative = np.array(spline_derivative)
 
     # Compute the true vectors from 2nd bar
     tmidi_true, trp_true, vchroma_true = compute_true_vectors(bar2_pitch_vector)
 
     # Return pitch vectors as numpy arrays
-    return bar1_pitch_vector, bar2_pitch_vector, frp, tmidi_true, trp_true, vchroma_true
+    return bar1_pitch_vector, bar2_pitch_vector, spline_derivative, tmidi_true, trp_true, vchroma_true
 
 # Definition the Pytorch Dataset
 class CombinedDataset(Dataset):
@@ -235,6 +261,6 @@ class CombinedDataset(Dataset):
         midi_path = self.files[idx]
 
         # Extract pitches from both bars and frp from 2nd bar
-        past_pitches, curr_pitches, frp, tmidi_true, trp_true, vchroma_true = process_bars(midi_path)
+        past_pitches, curr_pitches, spline_derivative, tmidi_true, trp_true, vchroma_true = process_bars(midi_path)
 
-        return past_pitches, curr_pitches, frp, midi_path, tmidi_true, trp_true, vchroma_true
+        return past_pitches, curr_pitches, spline_derivative, midi_path, tmidi_true, trp_true, vchroma_true
