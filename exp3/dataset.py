@@ -97,7 +97,7 @@ def compute_spline_derivative(frp):
     spline = make_lsq_spline(x, y, t, k)
 
     # Compute the derivative of the spline
-    xs = np.linspace(0, 1, hparams['frp_len'])
+    xs = np.linspace(0, 1, hparams['spline_derivative_len'])
     spline_derivative = spline.derivative(1)(xs)
 
     return spline_derivative
