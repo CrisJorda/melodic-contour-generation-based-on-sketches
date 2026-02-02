@@ -17,9 +17,8 @@ from torchinfo import summary
 import matplotlib.pyplot as plt
 
 # Seed definition
-seed = torch.seed()
-#seed = 123
-np.random.seed(seed % (2**32 - 1))
+seed = 123
+np.random.seed(seed)
 _ = torch.manual_seed(seed)
 _ = torch.cuda.manual_seed(seed)
 
@@ -45,7 +44,7 @@ test_size = total_size - train_size - val_size
 # Split the dataset
 train_dataset, val_dataset, test_dataset = random_split(
     combined_dataset, [train_size, val_size, test_size],
-    generator=torch.Generator().manual_seed(seed) # 42
+    generator=torch.Generator().manual_seed(42) # 42
 )
 
 # Dataloaders initialization
@@ -110,18 +109,18 @@ def loss_function(trp_pred, trp_true, tmidi_pred, tmidi_true,
 
     return loss_total, ce_loss_trp, ce_loss_tmidi, bce_loss_chroma, kl_total
 
-model = VariationalAutoencoder(hparams['channels'], hparams['latent_dim'], hparams['vocab_size'], hparams['seq_len'], hparams['frp_len'], hparams['n_layers_encoder'], hparams['embedding_dim'], hparams['n_layers_gru'], hparams['hidden_dim_gru'], hparams['vocab_size_Trp'], hparams['chroma_dim'])
+model = VariationalAutoencoder(hparams['channels'], hparams['latent_dim'], hparams['vocab_size'], hparams['seq_len'], hparams['spline_derivative_len'], hparams['n_layers_encoder'], hparams['embedding_dim'], hparams['n_layers_gru'], hparams['hidden_dim_gru'], hparams['vocab_size_Trp'], hparams['chroma_dim'])
 model = model.to(device)
 optimizer = optim.Adam(params=model.parameters(), lr=hparams['learning_rate'])
 
 # Get the summary of the parameters
 summary_model = summary(model, 
-                        input_size=[(hparams['batch_size'], 1, hparams['frp_len']), (hparams['batch_size'], 1, hparams['seq_len_dataset'])],
+                        input_size=[(hparams['batch_size'], 1, hparams['spline_derivative_len']), (hparams['batch_size'], 1, hparams['seq_len_dataset'])],
                         dtypes=[torch.float, torch.int])
 #print(summary_model)
 
 # Save checkpoint every 10 epochs
-checkpoints_dir = '/home/cristina/melodic-contour-generation-based-on-sketches/exp2.1/checkpoints_randseed'
+checkpoints_dir = '/home/cristina/melodic-contour-generation-based-on-sketches/exp3/checkpoints_2'
 os.makedirs(checkpoints_dir, exist_ok=True)
 
 # Early stopping settings
@@ -292,7 +291,7 @@ plt.ylabel("Total loss")
 plt.grid(True)
 plt.legend()
 
-plt.savefig("exp2.1/total_loss_randseed.png")
+plt.savefig("exp3/total_loss_2.png")
 plt.close()
 
 # Other losses curves
@@ -310,5 +309,5 @@ for i, loss_type in enumerate(loss_types):
     axs[i].grid(True)
 
 fig.legend(handles=[train_h, val_h], loc="upper center", bbox_to_anchor=(0.5, 1.15))
-plt.savefig("exp2.1/other_loss_randseed.png")
+plt.savefig("exp3/other_loss_2.png")
 plt.close()
