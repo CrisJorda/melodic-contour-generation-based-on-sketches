@@ -14,7 +14,7 @@ hparams = {
     'vocab_size_Trp': 7,
     'chroma_dim': 12,
     
-    'num_epochs':20,
+    'num_epochs':100,
     'lambda_trp': 1.0,
     'lambda_tmidi': 1.0,
     'lambda_chroma': 1.0,
