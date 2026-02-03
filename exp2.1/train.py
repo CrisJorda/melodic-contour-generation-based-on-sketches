@@ -17,9 +17,10 @@ from torchinfo import summary
 import matplotlib.pyplot as plt
 
 # Seed definition
-seed = torch.seed()
-#seed = 123
-np.random.seed(seed % (2**32 - 1))
+#seed = torch.seed()
+seed = 123
+#np.random.seed(seed % (2**32 - 1))
+np.random.seed(seed)
 _ = torch.manual_seed(seed)
 _ = torch.cuda.manual_seed(seed)
 
@@ -45,7 +46,7 @@ test_size = total_size - train_size - val_size
 # Split the dataset
 train_dataset, val_dataset, test_dataset = random_split(
     combined_dataset, [train_size, val_size, test_size],
-    generator=torch.Generator().manual_seed(seed) # 42
+    generator=torch.Generator().manual_seed(42) # 42
 )
 
 # Dataloaders initialization
@@ -121,7 +122,7 @@ summary_model = summary(model,
 #print(summary_model)
 
 # Save checkpoint every 10 epochs
-checkpoints_dir = '/home/cristina/melodic-contour-generation-based-on-sketches/exp2.1/checkpoints_randseed'
+checkpoints_dir = '/home/cristina/melodic-contour-generation-based-on-sketches/exp2.1/checkpoints_2'
 os.makedirs(checkpoints_dir, exist_ok=True)
 
 # Early stopping settings
@@ -292,7 +293,7 @@ plt.ylabel("Total loss")
 plt.grid(True)
 plt.legend()
 
-plt.savefig("exp2.1/total_loss_randseed.png")
+plt.savefig("exp2.1/total_loss_2.png")
 plt.close()
 
 # Other losses curves
@@ -310,5 +311,5 @@ for i, loss_type in enumerate(loss_types):
     axs[i].grid(True)
 
 fig.legend(handles=[train_h, val_h], loc="upper center", bbox_to_anchor=(0.5, 1.15))
-plt.savefig("exp2.1/other_loss_randseed.png")
+plt.savefig("exp2.1/other_loss_2.png")
 plt.close()
