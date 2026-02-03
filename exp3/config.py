@@ -10,7 +10,7 @@ hparams = {
     'n_layers_encoder': 3,
     'embedding_dim': 128,
     'n_layers_gru': 2,
-    'hidden_dim_gru': 2048,
+    'hidden_dim_gru': 1024,
     'seq_len': 24,
     'vocab_size_Trp': 7,
     'chroma_dim': 12,
