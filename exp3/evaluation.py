@@ -111,10 +111,10 @@ def loss_function(trp_pred, trp_true, tmidi_pred, tmidi_true,
     return loss_total, ce_loss_trp, ce_loss_tmidi, bce_loss_chroma, kl_total
 
 # --------------- Load trained model -----------------
-checkpoint_path = '/home/cristina/melodic-contour-generation-based-on-sketches/exp2.1/checkpoints/best_model.pth'
+checkpoint_path = '/home/cristina/melodic-contour-generation-based-on-sketches/exp3/checkpoints_4/best_model.pth'
 checkpoint = torch.load(checkpoint_path, map_location = torch.device('cpu'))
 
-model = VariationalAutoencoder(hparams['channels'], hparams['latent_dim'], hparams['vocab_size'], hparams['seq_len'], hparams['frp_len'], hparams['n_layers_encoder'], hparams['embedding_dim'], hparams['n_layers_gru'], hparams['hidden_dim_gru'], hparams['vocab_size_Trp'], hparams['chroma_dim'])
+model = VariationalAutoencoder(hparams['channels'], hparams['latent_dim'], hparams['vocab_size'], hparams['seq_len'], hparams['spline_derivative_len'], hparams['n_layers_encoder'], hparams['embedding_dim'], hparams['n_layers_gru'], hparams['hidden_dim_gru'], hparams['vocab_size_Trp'], hparams['chroma_dim'])
 model.load_state_dict(checkpoint["model_state_dict"])
 model = model.to(device)
 print('Model loaded')
@@ -378,7 +378,7 @@ context_match_list = []
 
 #print(len(test_dataloader))
 
-num_eval = 1000 # change to 1000
+num_eval = 10 # change to 1000
 
 loader_iter = iter(test_dataloader)
 
@@ -409,20 +409,20 @@ with torch.no_grad():
         tmidi_pred = bar3[0]
 
         # Save the scores
-        """
+        
         first_bar_score = converter.parse(str(sample_1[3][0])).measure(1)
-        first_bar_score.write('midi', fp=f"exp2.1/Midi_Eval/first_bar_score_{i}.mid")
+        first_bar_score.write('midi', fp=f"exp3/Midi_Eval/first_bar_score_{i}.mid")
 
         second_bar_score = converter.parse(str(sample_2[3][0])).measure(2)
-        second_bar_score.write('midi', fp=f"exp2.1/Midi_Eval/second_bar_score_{i}.mid")
+        second_bar_score.write('midi', fp=f"exp3/Midi_Eval/second_bar_score_{i}.mid")
 
         pitch = tmidi_pred[0].argmax(dim=-1).cpu().numpy()
         generated_score = tmidi_to_score(pitch, hparams['seq_len'])
-        generated_score.write('midi', fp=f"exp2.1/Midi_Eval/generated_score_{i}.mid")
-        """
+        generated_score.write('midi', fp=f"exp3/Midi_Eval/generated_score_{i}.mid")
+        
 
         # Get tokens from bars
-        tmidi_true_tokens = tmidi_true_1[0]
+        tmidi_true_tokens = tmidi_true_2[0]
         #print(tmidi_true_tokens)
         tmidi_pred_tokens = tmidi_pred[0].argmax(dim=-1).cpu().numpy()
         #print(tmidi_pred_tokens)
@@ -443,7 +443,7 @@ with torch.no_grad():
         #print(tmidi_true_pitch)
 
         # Save the plot with the 3 frps
-        """
+        
         plt.figure(figsize=(10, 3))
 
         plt.plot(tmidi_true_pitch, label="Ground truth", linewidth=2)
@@ -460,9 +460,9 @@ with torch.no_grad():
         plt.grid(True)
         plt.tight_layout()
 
-        plt.savefig(f"exp2.1/Midi_Eval/plot_{i}.png", dpi=150)
+        plt.savefig(f"exp3/Midi_Eval/plot_{i}.png", dpi=150)
         plt.close()
-        """
+        
 
         # Compute DTW without rhythm enforcement
         pitch_cost = dtw.distance(tmidi_pred_pitch, tmidi_true_pitch)
@@ -505,9 +505,9 @@ results = {
     'context': {'average': int(np.round(np.mean(context_match_list)))},
 }
 
-
+"""
 # Save results to a text file
-output_file = os.path.join('exp2.1', 'alignment_cost_12.txt')
+output_file = os.path.join('exp3', 'alignment_cost_22.txt')
 with open(output_file, 'w') as f:
     for key, stats in results.items():
         if key == 'context':
@@ -519,3 +519,4 @@ with open(output_file, 'w') as f:
             f.write(f"  Std: {stats['std']:.4f}\n\n")
 
 print(f"Results saved to {output_file}")
+"""
