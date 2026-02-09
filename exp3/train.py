@@ -120,7 +120,7 @@ summary_model = summary(model,
 #print(summary_model)
 
 # Save checkpoint every 10 epochs
-checkpoints_dir = '/home/cristina/melodic-contour-generation-based-on-sketches/exp3/checkpoints_2'
+checkpoints_dir = '/home/cristina/melodic-contour-generation-based-on-sketches/exp3/checkpoints_4'
 os.makedirs(checkpoints_dir, exist_ok=True)
 
 # Early stopping settings
@@ -291,7 +291,7 @@ plt.ylabel("Total loss")
 plt.grid(True)
 plt.legend()
 
-plt.savefig("exp3/total_loss_2.png")
+plt.savefig("exp3/total_loss_4.png")
 plt.close()
 
 # Other losses curves
@@ -309,5 +309,5 @@ for i, loss_type in enumerate(loss_types):
     axs[i].grid(True)
 
 fig.legend(handles=[train_h, val_h], loc="upper center", bbox_to_anchor=(0.5, 1.15))
-plt.savefig("exp3/other_loss_2.png")
+plt.savefig("exp3/other_loss_4.png")
 plt.close()
