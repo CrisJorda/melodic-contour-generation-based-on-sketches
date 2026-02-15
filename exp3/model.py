@@ -20,9 +20,9 @@ class QResBlock(nn.Module):
     """
     Residual block with 3 conv layers:
     input
+    -> Conv1d(kernel = 1) -> LeakyReLU
     -> Conv1d(kernel = 3) -> LeakyReLU
-    -> Conv1d(kernel = 3) -> LeakyReLU
-    -> Conv1d(kernel = 3) -> LeakyReLU
+    -> Conv1d(kernel = 1) -> LeakyReLU
     -> skip connection -> LeakyReLU
     -> output
     """
@@ -352,7 +352,8 @@ class VariationalAutoencoder(nn.Module):
                  n_layers_encoder: int,
                  embedding_dim: int,
                  n_layers_gru: int,
-                 hidden_dim_gru: int,
+                 hidden_dim_gru_encoder: int,
+                 hidden_dim_gru_decoder: int,
                  vocab_size_Trp: int,
                  chroma_dim: int,
                  ) -> None:
@@ -367,14 +368,15 @@ class VariationalAutoencoder(nn.Module):
         self.n_layers_encoder = n_layers_encoder
         self.embedding_dim = embedding_dim
         self.n_layer_gru = n_layers_gru
-        self.hidden_dim_gru = hidden_dim_gru
+        self.hidden_dim_gru_encoder = hidden_dim_gru_encoder
+        self.hidden_dim_gru_decoder = hidden_dim_gru_decoder
         self.vocab_size_Trp = vocab_size_Trp
         self.chroma_dim = chroma_dim
 
         self.encoder_curve = Qcurve(channels=self.channels, latent_dim=self.latent_dim, frp_len=self.frp_len, n_layers=self.n_layers_encoder)
-        self.encoder_context = Qcontext(vocab_size=self.vocab_size, embedding_dim=self.embedding_dim, hidden_dim_gru=self.hidden_dim_gru, n_layers_gru=self.n_layer_gru, latent_dim=self.latent_dim)
-        self.decoder_pitch = Prp(latent_dim=self.latent_dim, vocab_size_Trp=self.vocab_size_Trp, seq_len=self.seq_len, hidden_dim_decoder=self.hidden_dim_gru, n_layers=self.n_layer_gru)
-        self.decoder_midi = Pmidi(latent_dim=self.latent_dim, vocab_size_Trp= self.vocab_size_Trp, seq_len=self.seq_len, hidden_dim_decoder=self.hidden_dim_gru, n_layers=self.n_layer_gru, vocab_size=self.vocab_size)
+        self.encoder_context = Qcontext(vocab_size=self.vocab_size, embedding_dim=self.embedding_dim, hidden_dim_gru=self.hidden_dim_gru_encoder, n_layers_gru=self.n_layer_gru, latent_dim=self.latent_dim)
+        self.decoder_pitch = Prp(latent_dim=self.latent_dim, vocab_size_Trp=self.vocab_size_Trp, seq_len=self.seq_len, hidden_dim_decoder=self.hidden_dim_gru_decoder, n_layers=self.n_layer_gru)
+        self.decoder_midi = Pmidi(latent_dim=self.latent_dim, vocab_size_Trp= self.vocab_size_Trp, seq_len=self.seq_len, hidden_dim_decoder=self.hidden_dim_gru_decoder, n_layers=self.n_layer_gru, vocab_size=self.vocab_size)
         self.decoder_chroma = Pchroma(latent_dim=self.latent_dim, chroma_dim=self.chroma_dim)
 
     def forward(self, x_curve, x_context: torch.Tensor):

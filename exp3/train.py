@@ -109,7 +109,7 @@ def loss_function(trp_pred, trp_true, tmidi_pred, tmidi_true,
 
     return loss_total, ce_loss_trp, ce_loss_tmidi, bce_loss_chroma, kl_total
 
-model = VariationalAutoencoder(hparams['channels'], hparams['latent_dim'], hparams['vocab_size'], hparams['seq_len'], hparams['spline_derivative_len'], hparams['n_layers_encoder'], hparams['embedding_dim'], hparams['n_layers_gru'], hparams['hidden_dim_gru'], hparams['vocab_size_Trp'], hparams['chroma_dim'])
+model = VariationalAutoencoder(hparams['channels'], hparams['latent_dim'], hparams['vocab_size'], hparams['seq_len'], hparams['spline_derivative_len'], hparams['n_layers_encoder'], hparams['embedding_dim'], hparams['n_layers_gru'], hparams['hidden_dim_gru_encoder'], hparams['hidden_dim_gru_decoder'], hparams['vocab_size_Trp'], hparams['chroma_dim'])
 model = model.to(device)
 optimizer = optim.Adam(params=model.parameters(), lr=hparams['learning_rate'])
 
@@ -120,7 +120,7 @@ summary_model = summary(model,
 #print(summary_model)
 
 # Save checkpoint every 10 epochs
-checkpoints_dir = '/home/cristina/melodic-contour-generation-based-on-sketches/exp3/checkpoints_4'
+checkpoints_dir = '/home/cristina/melodic-contour-generation-based-on-sketches/exp3/checkpoints_5'
 os.makedirs(checkpoints_dir, exist_ok=True)
 
 # Early stopping settings
@@ -291,7 +291,7 @@ plt.ylabel("Total loss")
 plt.grid(True)
 plt.legend()
 
-plt.savefig("exp3/total_loss_4.png")
+plt.savefig("exp3/total_loss_5.png")
 plt.close()
 
 # Other losses curves
@@ -309,5 +309,5 @@ for i, loss_type in enumerate(loss_types):
     axs[i].grid(True)
 
 fig.legend(handles=[train_h, val_h], loc="upper center", bbox_to_anchor=(0.5, 1.15))
-plt.savefig("exp3/other_loss_4.png")
+plt.savefig("exp3/other_loss_5.png")
 plt.close()

@@ -111,10 +111,10 @@ def loss_function(trp_pred, trp_true, tmidi_pred, tmidi_true,
     return loss_total, ce_loss_trp, ce_loss_tmidi, bce_loss_chroma, kl_total
 
 # --------------- Load trained model -----------------
-checkpoint_path = '/home/cristina/melodic-contour-generation-based-on-sketches/exp3/checkpoints_4/best_model.pth'
+checkpoint_path = '/home/cristina/melodic-contour-generation-based-on-sketches/exp3/checkpoints_5/best_model.pth'
 checkpoint = torch.load(checkpoint_path, map_location = torch.device('cpu'))
 
-model = VariationalAutoencoder(hparams['channels'], hparams['latent_dim'], hparams['vocab_size'], hparams['seq_len'], hparams['spline_derivative_len'], hparams['n_layers_encoder'], hparams['embedding_dim'], hparams['n_layers_gru'], hparams['hidden_dim_gru'], hparams['vocab_size_Trp'], hparams['chroma_dim'])
+model = VariationalAutoencoder(hparams['channels'], hparams['latent_dim'], hparams['vocab_size'], hparams['seq_len'], hparams['spline_derivative_len'], hparams['n_layers_encoder'], hparams['embedding_dim'], hparams['n_layers_gru'], hparams['hidden_dim_gru_encoder'], hparams['hidden_dim_gru_decoder'], hparams['vocab_size_Trp'], hparams['chroma_dim'])
 model.load_state_dict(checkpoint["model_state_dict"])
 model = model.to(device)
 print('Model loaded')
@@ -378,7 +378,7 @@ context_match_list = []
 
 #print(len(test_dataloader))
 
-num_eval = 10 # change to 1000
+num_eval = 1000 # change to 1000
 
 loader_iter = iter(test_dataloader)
 
@@ -401,15 +401,15 @@ with torch.no_grad():
         bar22 = sample_2[2] # frp
         x_curve = bar22.float().unsqueeze(1).to(device)
 
-        tmidi_true_1 = sample_1[4].long().to(device) # sample_1 if comparing bar_12 with bar_3
-        tmidi_true_2 = sample_2[4].long().to(device) # sample_2 if comparing bar_22 with bar_3
+        tmidi_true_1 = sample_1[4].long().to(device) # sample_1 if comparing bar_12 with bar_3 -> reference
+        tmidi_true_2 = sample_2[4].long().to(device) # sample_2 if comparing bar_22 with bar_3 -> related
 
         # Generate new bar
         bar3 = model(x_curve, x_context) # tmidi_pred, trp_pred, vchroma_pred, zrp_mu, zrp_logvar, zc_mu, zc_logvar
         tmidi_pred = bar3[0]
 
         # Save the scores
-        
+        """
         first_bar_score = converter.parse(str(sample_1[3][0])).measure(1)
         first_bar_score.write('midi', fp=f"exp3/Midi_Eval/first_bar_score_{i}.mid")
 
@@ -419,10 +419,10 @@ with torch.no_grad():
         pitch = tmidi_pred[0].argmax(dim=-1).cpu().numpy()
         generated_score = tmidi_to_score(pitch, hparams['seq_len'])
         generated_score.write('midi', fp=f"exp3/Midi_Eval/generated_score_{i}.mid")
-        
+        """
 
         # Get tokens from bars
-        tmidi_true_tokens = tmidi_true_2[0]
+        tmidi_true_tokens = tmidi_true_1[0]
         #print(tmidi_true_tokens)
         tmidi_pred_tokens = tmidi_pred[0].argmax(dim=-1).cpu().numpy()
         #print(tmidi_pred_tokens)
@@ -443,7 +443,7 @@ with torch.no_grad():
         #print(tmidi_true_pitch)
 
         # Save the plot with the 3 frps
-        
+        """
         plt.figure(figsize=(10, 3))
 
         plt.plot(tmidi_true_pitch, label="Ground truth", linewidth=2)
@@ -462,7 +462,7 @@ with torch.no_grad():
 
         plt.savefig(f"exp3/Midi_Eval/plot_{i}.png", dpi=150)
         plt.close()
-        
+        """
 
         # Compute DTW without rhythm enforcement
         pitch_cost = dtw.distance(tmidi_pred_pitch, tmidi_true_pitch)
@@ -488,6 +488,8 @@ with torch.no_grad():
 
         # Context matching
         percentage_in_key = context_matching(tmidi_true_tokens, context)
+        # (tmidi_pred_tokens, context) for related -> 2
+        # (tmidi_true_tokens, context) for reference -> 1
         #print(percentage_in_key)
         context_match_list.append(percentage_in_key)                                                                                                                                              
 
@@ -505,9 +507,9 @@ results = {
     'context': {'average': int(np.round(np.mean(context_match_list)))},
 }
 
-"""
+
 # Save results to a text file
-output_file = os.path.join('exp3', 'alignment_cost_22.txt')
+output_file = os.path.join('exp3', 'alignment_cost_12_5.txt')
 with open(output_file, 'w') as f:
     for key, stats in results.items():
         if key == 'context':
@@ -519,4 +521,3 @@ with open(output_file, 'w') as f:
             f.write(f"  Std: {stats['std']:.4f}\n\n")
 
 print(f"Results saved to {output_file}")
-"""
