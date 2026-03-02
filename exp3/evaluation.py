@@ -422,7 +422,7 @@ with torch.no_grad():
         """
 
         # Get tokens from bars
-        tmidi_true_tokens = tmidi_true_2[0]
+        tmidi_true_tokens = tmidi_true_1[0]
         #print(tmidi_true_tokens)
         tmidi_pred_tokens = tmidi_pred[0].argmax(dim=-1).cpu().numpy()
         #print(tmidi_pred_tokens)
@@ -487,7 +487,7 @@ with torch.no_grad():
         rhythm_match_list.append(rhythm_cost)
 
         # Context matching
-        percentage_in_key = context_matching(tmidi_pred_tokens, context)
+        percentage_in_key = context_matching(tmidi_true_tokens, context)
         # (tmidi_pred_tokens, context) for related -> 2
         # (tmidi_true_tokens, context) for reference -> 1
         #print(percentage_in_key)
@@ -509,7 +509,7 @@ results = {
 
 
 # Save results to a text file
-output_file = os.path.join('exp3', 'alignment_cost_22_7.txt')
+output_file = os.path.join('exp3', 'alignment_cost_12_7.txt')
 with open(output_file, 'w') as f:
     for key, stats in results.items():
         if key == 'context':
