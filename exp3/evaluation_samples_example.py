@@ -302,12 +302,12 @@ with torch.no_grad():
         plt.figure(figsize=(10, 3))
 
         plt.plot(tmidi_true_pitch, label="Ground truth", linewidth=3, color=color_true)
-        plt.plot(tmidi_pred_pitch, label="Predicted", linestyle="--", linewidth=2, color=color_pred)
-        plt.plot(tmidi_pred_pitch_r, label="Predicted (rhythm enforced)", linestyle="--", linewidth=2, color=color_pred_r)
+        plt.plot(tmidi_pred_pitch, label="Predicted", linewidth=2, color=color_pred)
+        plt.plot(tmidi_pred_pitch_r, label="Predicted (rhythm enforced)", linewidth=2, color=color_pred_r)
 
-        plt.title("Relative pitch function", fontsize=11)
-        plt.ylabel("Normalized pitch (RPF)", fontsize=10)
-        plt.xlabel("Time (512 points)", fontsize=10)
+        plt.title("Relative pitch function comparison", fontsize=11)
+        plt.ylabel("Normalized pitch", fontsize=10)
+        plt.xlabel("Normalized time", fontsize=10)
 
         plt.ylim(-1, 1)
 
