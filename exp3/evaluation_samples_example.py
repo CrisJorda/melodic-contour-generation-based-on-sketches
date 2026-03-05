@@ -295,9 +295,9 @@ with torch.no_grad():
         #print(tmidi_true_pitch)
 
         # Save the plot with the 3 frps
-        color_true = "#DDB22F"
-        color_pred = '#8E7DBE' #'#6FA8DC' 
-        color_pred_r = '#7FB77E'
+        color_true = '#C5860A' #"#DDB22F"
+        color_pred = '#5E3C99' #"#8E7DBE" #'#6FA8DC' 
+        color_pred_r = '#1B7A46' # '#7FB77E'
 
         plt.figure(figsize=(10, 3))
 
