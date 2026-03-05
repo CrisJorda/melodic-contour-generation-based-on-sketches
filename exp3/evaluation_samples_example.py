@@ -296,8 +296,8 @@ with torch.no_grad():
 
         # Save the plot with the 3 frps
         color_true = "#DDB22F"
-        color_pred = '#8E7DBE' #'#6FA8DC' 
-        color_pred_r = '#7FB77E'
+        color_pred_r = '#8E7DBE' #'#6FA8DC' 
+        color_pred = '#7FB77E'
 
         plt.figure(figsize=(10, 3))
 
