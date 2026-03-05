@@ -299,7 +299,7 @@ with torch.no_grad():
         color_pred = "#8E7DBE" #'#6FA8DC' 
         color_pred_r = '#7FB77E' # '#1B7A46'
 
-        plt.figure(figsize=(10, 3))
+        plt.figure(figsize=(7, 5))
 
         plt.plot(tmidi_true_pitch, label="Ground truth", linewidth=3, color='tab:green')
         plt.plot(tmidi_pred_pitch, label="Predicted", linestyle="--", linewidth=2, color='tab:orange')
