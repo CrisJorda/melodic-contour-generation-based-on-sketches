@@ -229,7 +229,7 @@ def tmidi_to_score(tmidi_tokens, seq_len):
 
     return score
 
-num_eval = 10
+num_eval = 20
 
 loader_iter = iter(test_dataloader)
 
