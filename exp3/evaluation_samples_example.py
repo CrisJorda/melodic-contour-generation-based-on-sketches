@@ -261,16 +261,16 @@ with torch.no_grad():
 
         # Save the scores
         first_bar_score = converter.parse(str(sample_1[3][0])).measure(1)
-        first_bar_score.write('midi', fp=f"exp3/Midi_Eval_8/first_bar_score_{i}.mid")
+        #first_bar_score.write('midi', fp=f"exp3/Midi_Eval_8/first_bar_score_{i}.mid")
         #first_bar_score.show()
 
         second_bar_score = converter.parse(str(sample_2[3][0])).measure(2)
-        second_bar_score.write('midi', fp=f"exp3/Midi_Eval_8/second_bar_score_{i}.mid")
+        #second_bar_score.write('midi', fp=f"exp3/Midi_Eval_8/second_bar_score_{i}.mid")
         #second_bar_score.show()
 
         pitch = tmidi_pred[0].argmax(dim=-1).cpu().numpy()
         generated_score = tmidi_to_score(pitch, hparams['seq_len'])
-        generated_score.write('midi', fp=f"exp3/Midi_Eval_8/generated_score_{i}.mid")
+        #generated_score.write('midi', fp=f"exp3/Midi_Eval_8/generated_score_{i}.mid")
         #generated_score.show()
 
         # Get tokens from bars
@@ -295,19 +295,23 @@ with torch.no_grad():
         #print(tmidi_true_pitch)
 
         # Save the plot with the 3 frps
+        color_true = "#DDB22F"
+        color_pred = '#8E7DBE' #'#6FA8DC' 
+        color_pred_r = '#7FB77E'
+
         plt.figure(figsize=(10, 3))
 
-        plt.plot(tmidi_true_pitch, label="Ground truth", linewidth=2)
-        plt.plot(tmidi_pred_pitch, label="Predicted", linestyle="--")
-        plt.plot(tmidi_pred_pitch_r, label="Predicted (rhythm enforced)", linestyle=":")
+        plt.plot(tmidi_true_pitch, label="Ground truth", linewidth=3, color=color_true)
+        plt.plot(tmidi_pred_pitch, label="Predicted", linestyle="--", linewidth=2, color=color_pred)
+        plt.plot(tmidi_pred_pitch_r, label="Predicted (rhythm enforced)", linestyle="--", linewidth=2, color=color_pred_r)
 
-        plt.title("Relative pitch function", fontsize=14)
-        plt.ylabel("Normalized pitch (RPF)")
-        plt.xlabel("Time (512 points)")
+        plt.title("Relative pitch function", fontsize=11)
+        plt.ylabel("Normalized pitch (RPF)", fontsize=10)
+        plt.xlabel("Time (512 points)", fontsize=10)
 
         plt.ylim(-1, 1)
 
-        plt.legend(fontsize=11)
+        plt.legend(fontsize=10)
         plt.grid(True)
         plt.tight_layout()
 
