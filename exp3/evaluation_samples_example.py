@@ -296,14 +296,14 @@ with torch.no_grad():
 
         # Save the plot with the 3 frps
         color_true = "#DDB22F"
-        color_pred_r = '#8E7DBE' #'#6FA8DC' 
-        color_pred = '#7FB77E'
+        color_pred = '#8E7DBE' #'#6FA8DC' 
+        color_pred_r = '#7FB77E'
 
         plt.figure(figsize=(10, 3))
 
         plt.plot(tmidi_true_pitch, label="Ground truth", linewidth=3, color=color_true)
-        plt.plot(tmidi_pred_pitch, label="Predicted", linewidth=2, color=color_pred)
-        plt.plot(tmidi_pred_pitch_r, label="Predicted (rhythm enforced)", linewidth=2, color=color_pred_r)
+        plt.plot(tmidi_pred_pitch, label="Predicted", linestyle="-", linewidth=2, color=color_pred)
+        plt.plot(tmidi_pred_pitch_r, label="Predicted (rhythm enforced)", linestyle="--", linewidth=2, color=color_pred_r)
 
         plt.title("Relative pitch function comparison", fontsize=11)
         plt.ylabel("Normalized pitch", fontsize=10)
