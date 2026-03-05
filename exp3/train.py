@@ -120,8 +120,27 @@ summary_model = summary(model,
 #print(summary_model)
 
 # Save checkpoint every 10 epochs
-checkpoints_dir = '/home/cristina/melodic-contour-generation-based-on-sketches/exp3/checkpoints_7'
+checkpoints_dir = '/home/cristina/melodic-contour-generation-based-on-sketches/exp3/checkpoints_8'
 os.makedirs(checkpoints_dir, exist_ok=True)
+
+# Option to resume training from a checkpoint
+resume = True
+resume_checkpoint_path = os.path.join(checkpoints_dir, "model_epoch_70.pth")
+
+start_epoch = 0  # this will be the index in range()
+
+if resume and os.path.isfile(resume_checkpoint_path):
+    print(f"Resuming training from checkpoint: {resume_checkpoint_path}")
+    checkpoint = torch.load(resume_checkpoint_path, map_location=device)
+
+    model.load_state_dict(checkpoint["model_state_dict"])
+    optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+    model = model.to(device)
+
+    start_epoch = checkpoint["epoch"]
+
+    print(f"Checkpoint was saved after epoch {checkpoint['epoch']}. "
+          f"Continuing from epoch index {start_epoch}.")
 
 # Early stopping settings
 best_val_loss = float('inf')
@@ -139,7 +158,7 @@ train_loss_avg = {"loss_total": [], "ce_loss_trp": [], "ce_loss_tmidi": [], "bce
 val_loss_avg = {"loss_total": [], "ce_loss_trp": [], "ce_loss_tmidi": [], "bce_loss_chroma": [], "kl_loss": []}
 
 print('Training ...')
-for epoch in range(hparams['num_epochs']):
+for epoch in range(start_epoch, hparams['num_epochs']):
     train_loss_avg["loss_total"].append(0)
     train_loss_avg["ce_loss_trp"].append(0)
     train_loss_avg["ce_loss_tmidi"].append(0)
@@ -291,7 +310,7 @@ plt.ylabel("Total loss")
 plt.grid(True)
 plt.legend()
 
-plt.savefig("exp3/total_loss_7.png")
+#plt.savefig("exp3/total_loss_8.png")
 plt.close()
 
 # Other losses curves
@@ -309,5 +328,5 @@ for i, loss_type in enumerate(loss_types):
     axs[i].grid(True)
 
 fig.legend(handles=[train_h, val_h], loc="upper center", bbox_to_anchor=(0.5, 1.15))
-plt.savefig("exp3/other_loss_7.png")
+#plt.savefig("exp3/other_loss_8.png")
 plt.close()

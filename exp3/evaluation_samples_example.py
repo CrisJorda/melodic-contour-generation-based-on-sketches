@@ -111,7 +111,7 @@ def loss_function(trp_pred, trp_true, tmidi_pred, tmidi_true,
     return loss_total, ce_loss_trp, ce_loss_tmidi, bce_loss_chroma, kl_total
 
 # --------------- Load trained model -----------------
-checkpoint_path = '/home/cristina/melodic-contour-generation-based-on-sketches/exp3/checkpoints_6/best_model.pth'
+checkpoint_path = '/home/cristina/melodic-contour-generation-based-on-sketches/exp3/checkpoints_8/best_model.pth'
 checkpoint = torch.load(checkpoint_path, map_location = torch.device('cpu'))
 
 model = VariationalAutoencoder(hparams['channels'], hparams['latent_dim'], hparams['vocab_size'], hparams['seq_len'], hparams['spline_derivative_len'], hparams['n_layers_encoder'], hparams['embedding_dim'], hparams['n_layers_gru'], hparams['hidden_dim_gru_encoder'], hparams['hidden_dim_gru_decoder'], hparams['vocab_size_Trp'], hparams['chroma_dim'])
