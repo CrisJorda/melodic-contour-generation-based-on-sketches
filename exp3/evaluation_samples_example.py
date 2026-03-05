@@ -261,16 +261,16 @@ with torch.no_grad():
 
         # Save the scores
         first_bar_score = converter.parse(str(sample_1[3][0])).measure(1)
-        first_bar_score.write('midi', fp=f"exp3/Midi_Eval_6/first_bar_score_{i}.mid")
+        first_bar_score.write('midi', fp=f"exp3/Midi_Eval_8/first_bar_score_{i}.mid")
         #first_bar_score.show()
 
         second_bar_score = converter.parse(str(sample_2[3][0])).measure(2)
-        second_bar_score.write('midi', fp=f"exp3/Midi_Eval_6/second_bar_score_{i}.mid")
+        second_bar_score.write('midi', fp=f"exp3/Midi_Eval_8/second_bar_score_{i}.mid")
         #second_bar_score.show()
 
         pitch = tmidi_pred[0].argmax(dim=-1).cpu().numpy()
         generated_score = tmidi_to_score(pitch, hparams['seq_len'])
-        generated_score.write('midi', fp=f"exp3/Midi_Eval_6/generated_score_{i}.mid")
+        generated_score.write('midi', fp=f"exp3/Midi_Eval_8/generated_score_{i}.mid")
         #generated_score.show()
 
         # Get tokens from bars
@@ -312,5 +312,5 @@ with torch.no_grad():
         plt.tight_layout()
 
         #plt.show()
-        plt.savefig(f"exp3/Midi_Eval_6/plot_{i}.png", dpi=150)
+        plt.savefig(f"exp3/Midi_Eval_8/plot_{i}.svg", dpi=150)
         plt.close()

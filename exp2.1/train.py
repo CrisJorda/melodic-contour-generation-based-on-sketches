@@ -241,7 +241,7 @@ for epoch in range(hparams['num_epochs']):
         )
         
     model.train()
-
+"""
     # Save the model every 10 epochs
     if (epoch + 1) % 10 == 0:       
         save_path = os.path.join(      
@@ -278,9 +278,10 @@ for epoch in range(hparams['num_epochs']):
     if epochs_no_improve >= hparams['patience_early_stopping']:
         early_stop = True
         break
-
+"""
 print("--- TOTAL TIME: %s min ---" % (round((time.time() - start_time) / 60, 3)))
 
+"""
 # Plot the loss curves
 # Total loss curve
 plt.figure(figsize=(8, 6))
@@ -313,3 +314,4 @@ for i, loss_type in enumerate(loss_types):
 fig.legend(handles=[train_h, val_h], loc="upper center", bbox_to_anchor=(0.5, 1.15))
 plt.savefig("exp2.1/other_loss_2.png")
 plt.close()
+"""
