@@ -1,7 +1,7 @@
 venv
 irishtunes_dataset
 synthetics_dataset
-weird_dataset
+test_dataset
 .ipynb_checkpoints
 checkpoints
 checkpoints_1
