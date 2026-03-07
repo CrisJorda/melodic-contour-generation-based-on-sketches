@@ -6,7 +6,7 @@ import os
 from music21 import abcFormat, converter, stream, metadata, environment
 
 # Definition of the path to ABC file and the results folder
-abc_file_path = "/home/cristina/melodic-contour-generation-based-on-sketches/data.abc"
+abc_file_path = "/home/cristina/melodic-contour-generation-based-on-sketches/Irish_data.abc"
 results_folder = "/home/cristina/melodic-contour-generation-based-on-sketches/irishtunes_dataset"
 
 with open(abc_file_path, "r", encoding="utf-8") as abc_file:

@@ -124,10 +124,10 @@ checkpoints_dir = '/home/cristina/melodic-contour-generation-based-on-sketches/e
 os.makedirs(checkpoints_dir, exist_ok=True)
 
 # Option to resume training from a checkpoint
-resume = True
+resume = False
 resume_checkpoint_path = os.path.join(checkpoints_dir, "model_epoch_70.pth")
 
-start_epoch = 0  # this will be the index in range()
+start_epoch = 0
 
 if resume and os.path.isfile(resume_checkpoint_path):
     print(f"Resuming training from checkpoint: {resume_checkpoint_path}")
@@ -310,7 +310,7 @@ plt.ylabel("Total loss")
 plt.grid(True)
 plt.legend()
 
-#plt.savefig("exp3/total_loss_8.png")
+plt.savefig("exp3/total_loss_8.png")
 plt.close()
 
 # Other losses curves
@@ -328,5 +328,5 @@ for i, loss_type in enumerate(loss_types):
     axs[i].grid(True)
 
 fig.legend(handles=[train_h, val_h], loc="upper center", bbox_to_anchor=(0.5, 1.15))
-#plt.savefig("exp3/other_loss_8.png")
+plt.savefig("exp3/other_loss_8.png")
 plt.close()
