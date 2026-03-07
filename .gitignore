@@ -2,7 +2,6 @@ venv
 irishtunes_dataset
 synthetics_dataset
 .ipynb_checkpoints
-checkpoints
 checkpoints_1
 checkpoints_2
 checkpoints_3
@@ -11,6 +10,5 @@ checkpoints_5
 checkpoints_6
 checkpoints_7
 checkpoints_8
-checkpoints_randseed
 temp.abc
-path_to_music21.ipynb
+weird_dataset
