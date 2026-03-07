@@ -1,6 +1,7 @@
 venv
 irishtunes_dataset
 synthetics_dataset
+weird_dataset
 .ipynb_checkpoints
 checkpoints
 checkpoints_1
@@ -12,4 +13,3 @@ checkpoints_6
 checkpoints_7
 checkpoints_8
 temp.abc
-weird_dataset
