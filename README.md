@@ -43,9 +43,7 @@ The repository contains all necessary code to reproduce the results obtained in 
 Run the scripts `Irish_dataset_generation.py` and `synthetic_dataset_generation.py` from the folder `dataset_creation`.
 
 ## Experiment configurations
-Although the three experiment folders contain files with the same name, each experiment folder has differences from the others.
-
-### Experiment configurations
+Although the three experiment folders share the same file names, each experiment has distinct configurations and implementations. The main differences are summarized in the next table.
 
 | Trainable Parameter              | Experiment 1              | Experiment 2         | Experiment 3         |
 |----------------------------------|---------------------------|----------------------|----------------------|
@@ -55,3 +53,4 @@ Although the three experiment folders contain files with the same name, each exp
 | `hidden_dim_gru_encoder`        | 2048                      | 2048                 | 512                  |
 | `hidden_dim_gru_decoder`        | 2048                      | 2048                 | 512                  |
 | Total trainable parameters       | 581,220,741               | 581,220,741          | 17,571,973           |
+
