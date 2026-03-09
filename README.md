@@ -1,8 +1,8 @@
-﻿# Sketch-Guided Melody Generation
+﻿# Curve2Melody: Sketch-Guided Melody Generation
 
-This is the code repository for the article When Lines become Melodies: Sketch-Guided Melody Generation. 
+This is the code repository for the article Curve2Melody: Sketch-Guided Melody Generation, which contains all necessary code to reproduce the results obtained in the article.
 
-The repository contains all necessary code to reproduce the results obtained in the article.
+Curve2Melody is a multimodal AI generative system that enables to create new melodies by providing a hand-drawn sketch along with a contextual previous melody. Building on the "Draw and Listen" music inpainting framework [1], we redesigned the input structure and representation, and consequently optimized the architecture to obtain a substantially lighter model while maintaining the ability to recursively generate stylistically coherent melodies. We introduced a novel methodology for representing melodic contour curves by approximating the sketch with a cubic spline and using its first-order derivative directly as model input. 
 
 ## Project Structure
 
@@ -54,3 +54,10 @@ Although the three experiment folders share the same file names, each experiment
 | `hidden_dim_gru_decoder`        | 2048                      | 2048                 | 512                  |
 | Total trainable parameters       | 581,220,741               | 581,220,741          | 17,571,973           |
 
+Experiment 3 corresponds to the proposed Curve2Melody system, which achieves strong performance with a substantially lighter architecture than the other experiments and the ‘Draw and Listen’ [1] baseline.
+
+## References
+[1] C. Benetatos and Z. Duan, “Draw and listen! a sketch-based system for music inpainting,” in Transactions of the International Society for Music Information Retrieval, 2022, pp. 141–155.
+
+## Cite
+to be done once published
