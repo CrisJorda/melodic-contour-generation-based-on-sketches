@@ -2,6 +2,7 @@ venv
 irishtunes_dataset
 synthetics_dataset
 test_dataset
+test_notebook
 .ipynb_checkpoints
 checkpoints
 checkpoints_1
@@ -12,4 +13,5 @@ checkpoints_5
 checkpoints_6
 checkpoints_7
 checkpoints_8
+results
 temp.abc
