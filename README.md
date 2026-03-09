@@ -38,9 +38,16 @@ Curve2Melody is a multimodal AI generative system that enables to create new mel
 └── requirements.txt                      # Python dependencies
 
 ```
+## Installation
+It is recommended to use a virtual environment and install the dependencies from `requirements.txt`.
 
 ## Dataset Generation
-Run the scripts `Irish_dataset_generation.py` and `synthetic_dataset_generation.py` from the folder `dataset_creation`.
+The dataset used to train and evaluate the Curve2Melody model is the combination of Irish folk and synthetic samples.
+The original Irish folk music dataset in ABC notation is located at: `dataset_creation/Irish_data.abc`.
+Run the scripts `Irish_dataset_generation.py` and `synthetic_dataset_generation.py` from the folder `dataset_creation` to obtain the combined dataset.
+
+## Running the experiments
+Each experiment folder (`exp1, exp2, exp3`) contains its own configuration, dataset preprocessing, model, training, testing and evaluation scripts.
 
 ## Experiment configurations
 Although the three experiment folders share the same file names, each experiment has distinct configurations and implementations. The main differences are summarized in the next table.
@@ -60,4 +67,6 @@ Experiment 3 corresponds to the proposed Curve2Melody system, which achieves str
 [1] C. Benetatos and Z. Duan, “Draw and listen! a sketch-based system for music inpainting,” in Transactions of the International Society for Music Information Retrieval, 2022, pp. 141–155.
 
 ## Cite
+If you use this code or data in your research, please cite:
 to be done once published
+
