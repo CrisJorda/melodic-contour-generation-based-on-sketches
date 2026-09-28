@@ -12,7 +12,7 @@ hparams = {
     'n_layers_gru': 2,
     'hidden_dim_gru_encoder': 512,
     'hidden_dim_gru_decoder': 512,
-    'seq_len': 24,
+    'seq_len': 48,
     'vocab_size_Trp': 7,
     'chroma_dim': 12,
     
